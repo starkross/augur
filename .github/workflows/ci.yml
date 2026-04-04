@@ -146,7 +146,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Install regal
-        uses: styrainc/setup-regal@2a1a1b1ee654e3d6f4f98e5bb4e78dfc412e799f # v2
+        uses: styrainc/setup-regal@33a142b1189004e0f14bf42b15972c67eecce776 # v1.0.0
 
       - name: Regal lint
         run: regal lint policy/
