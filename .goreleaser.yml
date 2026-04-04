@@ -1,0 +1,54 @@
+version: 2
+project_name: augur
+
+before:
+  hooks:
+    - rm -rf internal/rules/policy
+    - mkdir -p internal/rules/policy
+    - cp -R policy/main policy/lib internal/rules/policy/
+    - go mod tidy
+
+builds:
+  - id: augur
+    main: ./cmd/augur
+    binary: augur
+    env: [CGO_ENABLED=0]
+    ldflags: [-s, -w, "-X main.version={{.Version}}"]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [README.md, "policy/**/*.rego"]
+
+kos:
+  - id: augur
+    main: ./cmd/augur
+    repo: ghcr.io/starkross/augur
+    platforms: [linux/amd64, linux/arm64]
+    tags: ["{{ .Version }}", latest]
+    bare: true
+    ldflags: [-s, -w, "-X main.version={{.Version}}"]
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.source: "{{ .GitURL }}"
+      org.opencontainers.image.licenses: Apache-2.0
+
+checksum:
+  name_template: checksums.txt
+
+nfpms:
+  - package_name: augur
+    maintainer: starkross
+    vendor: starkross
+    license: Apache-2.0
+    formats: [deb, rpm, apk]
+    contents:
+      - src: policy/**/*.rego
+        dst: /usr/share/augur/policy/
