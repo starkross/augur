@@ -7,8 +7,6 @@ linters:
     - errcheck
     - errorlint
     - gocritic
-    - gofmt
-    - goimports
     - gosec
     - govet
     - ineffassign
