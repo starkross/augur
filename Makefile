@@ -4,7 +4,7 @@ LDFLAGS    := -s -w -X main.version=$(VERSION)
 POLICY_SRC := policy
 POLICY_DST := internal/rules/policy
 
-.PHONY: build test test-rego snapshot install clean sync-policies demo
+.PHONY: build test test-rego lint-rego snapshot install clean sync-policies demo
 
 sync-policies:
 	@rm -rf $(POLICY_DST)
@@ -19,7 +19,11 @@ test: sync-policies
 
 test-rego:
 	@command -v conftest >/dev/null 2>&1 || { echo "conftest needed for rego tests"; exit 1; }
-	conftest verify --policy $(POLICY_SRC)/main/ --data $(POLICY_SRC)/lib/
+	conftest verify --policy $(POLICY_SRC)/
+
+lint-rego:
+	@command -v regal >/dev/null 2>&1 || { echo "regal needed: brew install styrainc/packages/regal"; exit 1; }
+	regal lint $(POLICY_SRC)/
 
 snapshot: sync-policies
 	goreleaser build --snapshot --clean

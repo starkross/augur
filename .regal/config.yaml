@@ -1,0 +1,5 @@
+rules:
+  idiomatic:
+    # object.values() unavailable in embedded OPA v1 — must use `some _, v in obj`
+    in-wildcard-key:
+      level: ignore

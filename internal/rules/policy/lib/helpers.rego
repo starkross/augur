@@ -58,3 +58,45 @@ obj_contains_string(obj, substr) if {
 	marshaled := json.marshal(obj)
 	contains(marshaled, substr)
 }
+
+# Duration parsing: converts OTel duration strings to milliseconds.
+parse_duration_ms(val) := ms if {
+	is_string(val)
+	endswith(val, "ms")
+	num_str := substring(val, 0, count(val) - 2)
+	ms := to_number(num_str)
+}
+
+parse_duration_ms(val) := ms if {
+	is_string(val)
+	endswith(val, "s")
+	not endswith(val, "ms")
+	num_str := substring(val, 0, count(val) - 1)
+	ms := to_number(num_str) * 1000
+}
+
+parse_duration_ms(val) := ms if {
+	is_string(val)
+	endswith(val, "m")
+	num_str := substring(val, 0, count(val) - 1)
+	ms := to_number(num_str) * 60000
+}
+
+parse_duration_ms(val) := ms if {
+	is_string(val)
+	endswith(val, "h")
+	num_str := substring(val, 0, count(val) - 1)
+	ms := to_number(num_str) * 3600000
+}
+
+parse_duration_ms(val) := ms if {
+	is_number(val)
+	ms := val * 1000
+}
+
+# Check if a duration value represents zero or is unset.
+is_zero_duration(val) if is_null(val)
+is_zero_duration(0) := true
+is_zero_duration("0") := true
+is_zero_duration("0s") := true
+is_zero_duration("0ms") := true

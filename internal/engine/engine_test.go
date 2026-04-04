@@ -109,7 +109,7 @@ func TestEval_NoFindings(t *testing.T) {
 			},
 		},
 		"processors": map[string]any{
-			"batch":          map[string]any{},
+			"batch":          map[string]any{"send_batch_max_size": 16384},
 			"memory_limiter": map[string]any{"check_interval": "5s", "limit_mib": 4000},
 		},
 		"exporters": map[string]any{
@@ -117,10 +117,13 @@ func TestEval_NoFindings(t *testing.T) {
 				"endpoint":         "${env:OTEL_EXPORTER_ENDPOINT}",
 				"tls":              map[string]any{"insecure": false},
 				"retry_on_failure": map[string]any{"enabled": true},
-				"sending_queue":    map[string]any{"enabled": true},
+				"sending_queue":    map[string]any{"enabled": true, "storage": "file_storage"},
 			},
 		},
-		"extensions": map[string]any{"health_check": map[string]any{}},
+		"extensions": map[string]any{
+			"health_check": map[string]any{},
+			"file_storage": map[string]any{"directory": "/tmp/otel"},
+		},
 		"service": map[string]any{
 			"extensions": []any{"health_check"},
 			"pipelines": map[string]any{

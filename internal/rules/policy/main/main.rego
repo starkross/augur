@@ -9,6 +9,8 @@ import future.keywords.in
 # DENY — blocking rules (must fix before deploy)
 # ============================================================
 
+# METADATA
+# entrypoint: true
 deny contains msg if {
 	not input.processors.memory_limiter
 	msg := "OTEL-001: memory_limiter processor is not configured. Required to prevent OOM in production."
@@ -68,6 +70,8 @@ deny contains msg if {
 # WARN — advisory rules (best practices)
 # ============================================================
 
+# METADATA
+# entrypoint: true
 warn contains msg if {
 	some name, receiver in input.receivers
 	lib.obj_contains_string(receiver, "0.0.0.0")
