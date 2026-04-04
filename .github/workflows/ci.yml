@@ -88,7 +88,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, vet, staticcheck, test]
+    needs: [lint, vet, staticcheck, test, rego]
     strategy:
       matrix:
         goos: [linux, darwin, windows]
@@ -138,6 +138,27 @@ jobs:
       - uses: hadolint/hadolint-action@2332a7b74a6de0dda2e2221d575162eba76ba5e5 # v3.3.0
         with:
           dockerfile: Dockerfile
+
+  rego:
+    name: Rego lint & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install regal
+        uses: styrainc/setup-regal@2a1a1b1ee654e3d6f4f98e5bb4e78dfc412e799f # v2
+
+      - name: Regal lint
+        run: regal lint policy/
+
+      - name: Install conftest
+        run: |
+          CONFTEST_VERSION=0.68.0
+          curl -fsSL https://github.com/open-policy-agent/conftest/releases/download/v${CONFTEST_VERSION}/conftest_${CONFTEST_VERSION}_Linux_x86_64.tar.gz \
+            | tar xz -C /usr/local/bin conftest
+
+      - name: Rego tests
+        run: conftest verify --policy policy/
 
   tidy:
     name: Mod tidy check
