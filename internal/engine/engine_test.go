@@ -10,7 +10,7 @@ import (
 )
 
 func TestNew_Embedded(t *testing.T) {
-	_, err := engine.New(rules.Policies, rules.PolicyDir)
+	_, err := engine.New(engine.PolicySource{FS: rules.Policies, Dir: rules.PolicyDir})
 	if err != nil {
 		t.Fatalf("New() returned error: %v", err)
 	}
@@ -32,7 +32,7 @@ deny contains msg if {
 		},
 	}
 
-	eng, err := engine.New(policyFS, ".")
+	eng, err := engine.New(engine.PolicySource{FS: policyFS, Dir: "."})
 	if err != nil {
 		t.Fatalf("New() returned error: %v", err)
 	}
@@ -52,14 +52,14 @@ func TestNew_InvalidRego(t *testing.T) {
 		"bad.rego": &fstest.MapFile{Data: []byte("not valid rego {{{{")},
 	}
 
-	_, err := engine.New(policyFS, ".")
+	_, err := engine.New(engine.PolicySource{FS: policyFS, Dir: "."})
 	if err == nil {
 		t.Fatal("expected error for invalid Rego")
 	}
 }
 
 func TestEval_DenyFindings(t *testing.T) {
-	eng, err := engine.New(rules.Policies, rules.PolicyDir)
+	eng, err := engine.New(engine.PolicySource{FS: rules.Policies, Dir: rules.PolicyDir})
 	if err != nil {
 		t.Fatalf("New() returned error: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestEval_DenyFindings(t *testing.T) {
 }
 
 func TestEval_NoFindings(t *testing.T) {
-	eng, err := engine.New(rules.Policies, rules.PolicyDir)
+	eng, err := engine.New(engine.PolicySource{FS: rules.Policies, Dir: rules.PolicyDir})
 	if err != nil {
 		t.Fatalf("New() returned error: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestEval_NoFindings(t *testing.T) {
 }
 
 func TestEval_FindingsSortedByRuleID(t *testing.T) {
-	eng, err := engine.New(rules.Policies, rules.PolicyDir)
+	eng, err := engine.New(engine.PolicySource{FS: rules.Policies, Dir: rules.PolicyDir})
 	if err != nil {
 		t.Fatalf("New() returned error: %v", err)
 	}

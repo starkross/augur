@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"strings"
 
@@ -51,7 +50,7 @@ func newRootCmd(version string) *cobra.Command {
 	f.BoolVarP(&quiet, "quiet", "q", false, "Only show failures, suppress warnings")
 	f.StringVarP(&skipRules, "skip", "k", "", "Comma-separated rule IDs to skip")
 	f.BoolVar(&noColor, "no-color", false, "Disable colored output")
-	f.StringVarP(&policyDir, "policy", "p", "", "Custom policy directory (overrides embedded)")
+	f.StringVarP(&policyDir, "policy", "p", "", "Additional policy directory (merged with built-in rules)")
 
 	return root
 }
@@ -68,14 +67,14 @@ type runOpts struct {
 func run(files []string, opts runOpts) error {
 	ctx := context.Background()
 
-	var policyFS fs.FS = rules.Policies
-	policyRoot := rules.PolicyDir
+	sources := []engine.PolicySource{
+		{FS: rules.Policies, Dir: rules.PolicyDir},
+	}
 	if opts.policyDir != "" {
-		policyFS = os.DirFS(opts.policyDir)
-		policyRoot = "."
+		sources = append(sources, engine.PolicySource{FS: os.DirFS(opts.policyDir), Dir: "."})
 	}
 
-	eng, err := engine.New(policyFS, policyRoot)
+	eng, err := engine.New(sources...)
 	if err != nil {
 		return fmt.Errorf("initializing policy engine: %w", err)
 	}

@@ -40,30 +40,39 @@ type Engine struct {
 	pq rego.PreparedEvalQuery
 }
 
-// New compiles the Rego policies from the given filesystem and returns an Engine
-// ready for evaluation. The policyDir specifies the root directory within the
-// filesystem to walk for .rego files.
-func New(policies fs.FS, policyDir string) (*Engine, error) {
+// PolicySource represents a filesystem and root directory to load policies from.
+type PolicySource struct {
+	FS  fs.FS
+	Dir string
+}
+
+// New compiles the Rego policies from one or more sources and returns an Engine
+// ready for evaluation. Modules from all sources are merged; later sources can
+// extend (but not override) earlier ones.
+func New(sources ...PolicySource) (*Engine, error) {
 	modules := make(map[string]string)
 
-	err := fs.WalkDir(policies, policyDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(path, ".rego") || strings.HasSuffix(path, "_test.rego") {
+	for i, src := range sources {
+		prefix := fmt.Sprintf("src%d/", i)
+		err := fs.WalkDir(src.FS, src.Dir, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || !strings.HasSuffix(path, ".rego") || strings.HasSuffix(path, "_test.rego") {
+				return nil
+			}
+
+			data, readErr := fs.ReadFile(src.FS, path)
+			if readErr != nil {
+				return fmt.Errorf("reading %q: %w", path, readErr)
+			}
+
+			modules[prefix+path] = string(data)
 			return nil
+		})
+		if err != nil {
+			return nil, fmt.Errorf("loading policies: %w", err)
 		}
-
-		data, readErr := fs.ReadFile(policies, path)
-		if readErr != nil {
-			return fmt.Errorf("reading %q: %w", path, readErr)
-		}
-
-		modules[path] = string(data)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("loading policies: %w", err)
 	}
 
 	compiler, compileErr := ast.CompileModules(modules)

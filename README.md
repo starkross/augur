@@ -103,7 +103,7 @@ augur [flags] <config.yaml> [config.yaml...]
 | `-q, --quiet` | Suppress warnings, show only failures | `false` |
 | `-k, --skip` | Comma-separated rule IDs to skip | |
 | `--no-color` | Disable colored output | `false` |
-| `-p, --policy` | Custom policy directory (overrides embedded rules) | |
+| `-p, --policy` | Additional policy directory (merged with built-in rules) | |
 
 ### Examples
 
@@ -123,26 +123,6 @@ augur --skip OTEL-015,OTEL-016 config.yaml
 # Use custom policies
 augur --policy ./my-policies config.yaml
 ```
-
-## GitHub Actions
-
-Add to your workflow:
-
-```yaml
-- uses: starkross/augur@v1
-  with:
-    config: otel-collector-config.yaml
-    strict: "true"
-```
-
-Findings appear as inline annotations on the PR:
-
-| Input | Description | Default |
-|-------|-------------|---------|
-| `config` | Path(s) to config files (space-separated) | *required* |
-| `strict` | Treat warnings as errors | `false` |
-| `skip` | Comma-separated rule IDs to skip | |
-| `version` | Linter version tag | `latest` |
 
 ## Custom policies
 
@@ -169,39 +149,4 @@ deny contains msg if {
 augur --policy ./my-policies config.yaml
 ```
 
-Custom policies **replace** the embedded rules. To extend rather than replace, copy the built-in `policy/` directory and add your files alongside.
-
-## Development
-
-```sh
-# Run Go tests (syncs policies automatically)
-make test
-
-# Run Rego unit tests (requires conftest)
-make test-rego
-
-# Build binary
-make build
-
-# Run against example configs
-make demo
-```
-
-### Project structure
-
-```
-policy/
-  main/          # Main rules (package main) — deny & warn
-  lib/           # Helper functions (package lib)
-internal/
-  engine/        # OPA evaluation engine
-  config/        # YAML config loader
-  output/        # Text, JSON, GitHub Actions formatters
-  rules/         # Embedded policy files (auto-synced from policy/)
-cmd/augur/   # CLI entrypoint
-examples/        # Sample good/bad configs
-```
-
-## License
-
-Apache-2.0
+Custom policies are **merged** with the built-in rules — your rules run alongside all default checks.
