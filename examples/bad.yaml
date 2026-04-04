@@ -1,0 +1,36 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+      http:
+        endpoint: "0.0.0.0:4318"
+  jaeger:
+    protocols:
+      grpc:
+
+processors:
+  attributes:
+    actions:
+      - key: env
+        value: production
+        action: upsert
+
+exporters:
+  debug: {}
+  otlp/vendor:
+    endpoint: "api.vendor.com:4317"
+    headers:
+      api_key: "sk-hardcoded-secret"
+  otlp/unused:
+    endpoint: "https://other.vendor.com"
+
+service:
+  telemetry:
+    logs:
+      level: debug
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [attributes]
+      exporters: [otlp/vendor, debug]

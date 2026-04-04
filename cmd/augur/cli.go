@@ -1,0 +1,148 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/starkross/augur/internal/config"
+	"github.com/starkross/augur/internal/engine"
+	"github.com/starkross/augur/internal/output"
+	"github.com/starkross/augur/internal/rules"
+)
+
+func newRootCmd(version string) *cobra.Command {
+	var (
+		outputFmt string
+		strict    bool
+		quiet     bool
+		skipRules string
+		noColor   bool
+		policyDir string
+	)
+
+	root := &cobra.Command{
+		Use:     "augur [flags] <config.yaml> [config.yaml...]",
+		Short:   "Lint OpenTelemetry Collector configs for best practices",
+		Version: version,
+		Args:    cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return run(args, runOpts{
+				outputFmt: outputFmt,
+				strict:    strict,
+				quiet:     quiet,
+				skipRules: parseSkip(skipRules),
+				noColor:   noColor,
+				policyDir: policyDir,
+			})
+		},
+		SilenceErrors: true,
+		SilenceUsage:  true,
+	}
+
+	f := root.Flags()
+	f.StringVarP(&outputFmt, "output", "o", "text", "Output format: text, json, github")
+	f.BoolVarP(&strict, "strict", "s", false, "Treat warnings as errors")
+	f.BoolVarP(&quiet, "quiet", "q", false, "Only show failures, suppress warnings")
+	f.StringVarP(&skipRules, "skip", "k", "", "Comma-separated rule IDs to skip")
+	f.BoolVar(&noColor, "no-color", false, "Disable colored output")
+	f.StringVarP(&policyDir, "policy", "p", "", "Custom policy directory (overrides embedded)")
+
+	return root
+}
+
+type runOpts struct {
+	outputFmt string
+	strict    bool
+	quiet     bool
+	skipRules map[string]struct{}
+	noColor   bool
+	policyDir string
+}
+
+func run(files []string, opts runOpts) error {
+	ctx := context.Background()
+
+	var policyFS fs.FS = rules.Policies
+	policyRoot := rules.PolicyDir
+	if opts.policyDir != "" {
+		policyFS = os.DirFS(opts.policyDir)
+		policyRoot = "."
+	}
+
+	eng, err := engine.New(policyFS, policyRoot)
+	if err != nil {
+		return fmt.Errorf("initializing policy engine: %w", err)
+	}
+
+	formatter, err := output.GetFormatter(opts.outputFmt, opts.noColor)
+	if err != nil {
+		return err
+	}
+
+	results := make([]*engine.Result, 0, len(files))
+	hasFailures := false
+
+	for _, file := range files {
+		input, loadErr := config.LoadYAML(file)
+		if loadErr != nil {
+			return loadErr
+		}
+
+		result, evalErr := eng.Eval(ctx, file, input)
+		if evalErr != nil {
+			return fmt.Errorf("evaluating %q: %w", file, evalErr)
+		}
+
+		filtered := filterFindings(result, opts)
+		results = append(results, filtered)
+
+		for _, finding := range filtered.Findings {
+			if finding.Severity == engine.SeverityDeny || (finding.Severity == engine.SeverityWarn && opts.strict) {
+				hasFailures = true
+			}
+		}
+	}
+
+	if err := formatter.Format(os.Stdout, results); err != nil {
+		return fmt.Errorf("formatting output: %w", err)
+	}
+
+	if hasFailures {
+		return errors.New("lint failures detected")
+	}
+	return nil
+}
+
+func filterFindings(r *engine.Result, opts runOpts) *engine.Result {
+	if len(opts.skipRules) == 0 && !opts.quiet {
+		return r
+	}
+	filtered := &engine.Result{File: r.File, Findings: make([]engine.Finding, 0, len(r.Findings))}
+	for _, finding := range r.Findings {
+		if _, skip := opts.skipRules[finding.RuleID]; skip {
+			continue
+		}
+		if opts.quiet && finding.Severity == engine.SeverityWarn {
+			continue
+		}
+		filtered.Findings = append(filtered.Findings, finding)
+	}
+	return filtered
+}
+
+func parseSkip(s string) map[string]struct{} {
+	m := make(map[string]struct{})
+	if s == "" {
+		return m
+	}
+	for _, id := range strings.Split(s, ",") {
+		m[strings.TrimSpace(id)] = struct{}{}
+	}
+	return m
+}
