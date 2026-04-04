@@ -11,7 +11,7 @@ import (
 func TestLoadYAML_Valid(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.yaml")
-	if err := os.WriteFile(path, []byte("key: value\nnested:\n  a: 1\n"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("key: value\nnested:\n  a: 1\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -35,7 +35,7 @@ func TestLoadYAML_NotFound(t *testing.T) {
 func TestLoadYAML_InvalidYAML(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad.yaml")
-	if err := os.WriteFile(path, []byte(":\n  :\n    [invalid"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(":\n  :\n    [invalid"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,7 +48,7 @@ func TestLoadYAML_InvalidYAML(t *testing.T) {
 func TestLoadYAML_EmptyFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "empty.yaml")
-	if err := os.WriteFile(path, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(path, []byte(""), 0600); err != nil {
 		t.Fatal(err)
 	}
 

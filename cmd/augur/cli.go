@@ -58,11 +58,11 @@ func newRootCmd(version string) *cobra.Command {
 
 type runOpts struct {
 	outputFmt string
+	policyDir string
+	skipRules map[string]struct{}
 	strict    bool
 	quiet     bool
-	skipRules map[string]struct{}
 	noColor   bool
-	policyDir string
 }
 
 func run(files []string, opts runOpts) error {

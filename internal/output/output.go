@@ -44,11 +44,12 @@ func (f *TextFormatter) Format(w io.Writer, results []*engine.Result) error {
 		}
 		printf("\n")
 	}
-	if denies+warns == 0 {
+	switch {
+	case denies+warns == 0:
 		printf("%s\n", f.green("✓ All checks passed"))
-	} else if denies == 0 {
+	case denies == 0:
 		printf("%s\n", f.yellow(fmt.Sprintf("⚠ %d warning(s), 0 failure(s)", warns)))
-	} else {
+	default:
 		printf("%s\n", f.red(fmt.Sprintf("✗ %d failure(s), %d warning(s)", denies, warns)))
 	}
 	return werr
