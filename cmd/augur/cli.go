@@ -57,9 +57,9 @@ func newRootCmd(version string) *cobra.Command {
 }
 
 type runOpts struct {
+	skipRules map[string]struct{}
 	outputFmt string
 	policyDir string
-	skipRules map[string]struct{}
 	strict    bool
 	quiet     bool
 	noColor   bool
