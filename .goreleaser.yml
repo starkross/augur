@@ -41,17 +41,17 @@ kos:
       org.opencontainers.image.source: "{{ .GitURL }}"
       org.opencontainers.image.licenses: Apache-2.0
 
-brews:
+homebrew_casks:
   - repository:
       owner: starkross
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
+    directory: Casks
     homepage: https://github.com/starkross/augur
     description: Policy-driven linter for OpenTelemetry configurations
     license: Apache-2.0
     test: |
-      assert_match version.to_s, shell_output("#{bin}/augur version")
+      assert_match version.to_s, shell_output("#{bin}/augur --version")
 
 checksum:
   name_template: checksums.txt
