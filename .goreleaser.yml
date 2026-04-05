@@ -29,7 +29,8 @@ archives:
 kos:
   - id: augur
     main: ./cmd/augur
-    repo: ghcr.io/starkross/augur
+    repositories:
+      - ghcr.io/starkross/augur
     platforms: [linux/amd64, linux/arm64]
     tags: ["{{ .Version }}", latest]
     bare: true
