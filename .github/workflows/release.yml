@@ -35,3 +35,88 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+  verify:
+    needs: release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            method: archive
+          - runner: ubuntu-latest
+            method: deb
+          - runner: ubuntu-latest
+            method: rpm
+          - runner: ubuntu-latest
+            method: apk
+          - runner: ubuntu-latest
+            method: docker
+          - runner: macos-latest
+            method: homebrew
+          - runner: ubuntu-latest
+            method: go-install
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    steps:
+      - name: Get version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Install from tar.gz archive
+        if: matrix.method == 'archive'
+        run: |
+          curl -fsSL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/augur_${{ steps.version.outputs.version }}_linux_amd64.tar.gz" -o augur.tar.gz
+          tar xzf augur.tar.gz
+          ./augur version
+
+      - name: Install from deb package
+        if: matrix.method == 'deb'
+        run: |
+          curl -fsSL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/augur_${{ steps.version.outputs.version }}_linux_amd64.deb" -o augur.deb
+          sudo dpkg -i augur.deb
+          augur version
+
+      - name: Install from rpm package
+        if: matrix.method == 'rpm'
+        run: |
+          curl -fsSL "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/augur_${{ steps.version.outputs.version }}_linux_amd64.rpm" -o augur.rpm
+          sudo rpm -i augur.rpm
+          augur version
+
+      - name: Install from apk package
+        if: matrix.method == 'apk'
+        run: |
+          docker run --rm -v "$PWD:/work" alpine sh -c "
+            apk add --no-cache curl &&
+            curl -fsSL 'https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/augur_${{ steps.version.outputs.version }}_linux_amd64.apk' -o /tmp/augur.apk &&
+            apk add --allow-untrusted /tmp/augur.apk &&
+            augur version
+          "
+
+      - name: Install from Docker image
+        if: matrix.method == 'docker'
+        run: |
+          docker pull ghcr.io/starkross/augur:${{ steps.version.outputs.version }}
+          docker run --rm ghcr.io/starkross/augur:${{ steps.version.outputs.version }} version
+
+      - name: Set up Go
+        if: matrix.method == 'go-install'
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version: "1.26"
+
+      - name: Install via go install
+        if: matrix.method == 'go-install'
+        run: |
+          go install github.com/${{ github.repository }}/cmd/augur@${GITHUB_REF_NAME}
+          augur version
+
+      - name: Install from Homebrew
+        if: matrix.method == 'homebrew'
+        run: |
+          brew install starkross/tap/augur
+          augur version
+
+      - name: Verify version output
+        run: echo "Successfully installed augur ${{ steps.version.outputs.version }} via ${{ matrix.method }}"
