@@ -50,8 +50,6 @@ homebrew_casks:
     homepage: https://github.com/starkross/augur
     description: Policy-driven linter for OpenTelemetry configurations
     license: Apache-2.0
-    test: |
-      assert_match version.to_s, shell_output("#{bin}/augur --version")
 
 checksum:
   name_template: checksums.txt
