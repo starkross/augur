@@ -115,7 +115,7 @@ jobs:
       - name: Install from Homebrew
         if: matrix.method == 'homebrew'
         run: |
-          brew install starkross/tap/augur
+          brew install --cask starkross/tap/augur
           augur --version
 
       - name: Verify version output

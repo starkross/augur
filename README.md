@@ -63,7 +63,7 @@ The OpenTelemetry Collector is flexible, but that flexibility makes it easy to s
 ### Homebrew
 
 ```sh
-brew install starkross/tap/augur
+brew install --cask starkross/tap/augur
 ```
 
 ### Go
