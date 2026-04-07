@@ -89,7 +89,7 @@ docker_signs:
     args:
       - sign
       - "--yes"
-      - "${artifact}@${digest}"
+      - "${artifact}"
     artifacts: manifests
     output: true
 
