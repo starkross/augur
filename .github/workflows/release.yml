@@ -148,10 +148,14 @@ jobs:
           augur --version
 
       - name: Install from Homebrew
-        if: matrix.method == 'homebrew'
+        if: matrix.method == 'homebrew' && !contains(github.ref_name, '-')
         run: |
           brew install --cask starkross/tap/augur
           augur --version
+
+      - name: Skip Homebrew verify on pre-release
+        if: matrix.method == 'homebrew' && contains(github.ref_name, '-')
+        run: echo "Skipping Homebrew verify for pre-release ${GITHUB_REF_NAME} (tap is not updated for pre-releases by design)."
 
       - name: Install cosign
         if: startsWith(matrix.method, 'cosign-')
