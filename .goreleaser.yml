@@ -32,8 +32,11 @@ kos:
     repositories:
       - ghcr.io/starkross/augur
     platforms: [linux/amd64, linux/arm64]
-    tags: ["{{ .Version }}", latest]
+    tags:
+      - "{{ .Version }}"
+      - '{{ if not .Prerelease }}latest{{ end }}'
     bare: true
+    sbom: cyclonedx
     ldflags: [-s, -w, "-X main.version={{.Version}}"]
     labels:
       org.opencontainers.image.title: "{{ .ProjectName }}"
@@ -50,9 +53,45 @@ homebrew_casks:
     homepage: https://github.com/starkross/augur
     description: Policy-driven linter for OpenTelemetry configurations
     license: Apache-2.0
+    skip_upload: auto
+
+release:
+  prerelease: auto
 
 checksum:
   name_template: checksums.txt
+
+sboms:
+  - id: archive
+    artifacts: archive
+    documents:
+      - "${artifact}.sbom.cdx.json"
+    cmd: syft
+    args: [scan, "$artifact", --output, "cyclonedx-json=$document"]
+
+signs:
+  - id: checksums
+    cmd: cosign
+    certificate: "${artifact}.pem"
+    signature: "${artifact}.sig"
+    args:
+      - sign-blob
+      - "--yes"
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+    artifacts: checksum
+    output: true
+
+docker_signs:
+  - id: images
+    cmd: cosign
+    args:
+      - sign
+      - "--yes"
+      - "${artifact}@${digest}"
+    artifacts: manifests
+    output: true
 
 nfpms:
   - package_name: augur
