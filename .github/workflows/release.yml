@@ -10,11 +10,14 @@ concurrency:
 permissions:
   contents: write
   packages: write
+  id-token: write # cosign keyless OIDC + SLSA provenance
 
 jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -28,6 +31,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d # v0.9
+      - uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+      - uses: anchore/sbom-action/download-syft@55dc4ee22412511ee8c3142cbea40418e6cec693 # v0.17.8
       - uses: goreleaser/goreleaser-action@ec59f474b9834571250b370d4735c50f8e2d1e29 # v7
         with:
           version: "~> v2"
@@ -35,6 +40,32 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Compute artifact hashes for SLSA provenance
+        id: hash
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          subjects=(*.tar.gz *.zip *.deb *.rpm *.apk *.sbom.cdx.json checksums.txt)
+          if [ ${#subjects[@]} -eq 0 ]; then
+            echo "no release artifacts found in dist/" >&2
+            exit 1
+          fi
+          echo "hashes=$(sha256sum -- "${subjects[@]}" | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+  # SLSA Level 3 build provenance for binary release artifacts.
+  # Reusable workflow MUST be referenced by tag (not commit SHA): the generator
+  # verifies its own ref and rejects unpinned references at runtime.
+  provenance:
+    needs: [release]
+    permissions:
+      actions: read
+      id-token: write
+      contents: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.release.outputs.hashes }}"
+      upload-assets: true
 
   verify:
     needs: release
@@ -56,6 +87,10 @@ jobs:
             method: homebrew
           - runner: ubuntu-latest
             method: go-install
+          - runner: ubuntu-latest
+            method: cosign-checksums
+          - runner: ubuntu-latest
+            method: cosign-image
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 10
     steps:
@@ -113,10 +148,47 @@ jobs:
           augur --version
 
       - name: Install from Homebrew
-        if: matrix.method == 'homebrew'
+        if: matrix.method == 'homebrew' && !contains(github.ref_name, '-')
         run: |
           brew install --cask starkross/tap/augur
           augur --version
+
+      - name: Skip Homebrew verify on pre-release
+        if: matrix.method == 'homebrew' && contains(github.ref_name, '-')
+        run: echo "Skipping Homebrew verify for pre-release ${GITHUB_REF_NAME} (tap is not updated for pre-releases by design)."
+
+      - name: Install cosign
+        if: startsWith(matrix.method, 'cosign-')
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
+
+      - name: Verify checksums.txt cosign signature
+        if: matrix.method == 'cosign-checksums'
+        env:
+          IDENTITY_REGEX: https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/v.*
+          OIDC_ISSUER: https://token.actions.githubusercontent.com
+        run: |
+          set -euo pipefail
+          base="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}"
+          curl -fsSL "${base}/checksums.txt"     -o checksums.txt
+          curl -fsSL "${base}/checksums.txt.sig" -o checksums.txt.sig
+          curl -fsSL "${base}/checksums.txt.pem" -o checksums.txt.pem
+          cosign verify-blob \
+            --certificate checksums.txt.pem \
+            --signature   checksums.txt.sig \
+            --certificate-identity-regexp "${IDENTITY_REGEX}" \
+            --certificate-oidc-issuer     "${OIDC_ISSUER}" \
+            checksums.txt
+
+      - name: Verify container image cosign signature
+        if: matrix.method == 'cosign-image'
+        env:
+          IDENTITY_REGEX: https://github.com/${{ github.repository }}/.github/workflows/release.yml@refs/tags/v.*
+          OIDC_ISSUER: https://token.actions.githubusercontent.com
+        run: |
+          set -euo pipefail
+          cosign verify "ghcr.io/starkross/augur:${{ steps.version.outputs.version }}" \
+            --certificate-identity-regexp "${IDENTITY_REGEX}" \
+            --certificate-oidc-issuer     "${OIDC_ISSUER}"
 
       - name: Verify version output
         run: echo "Successfully installed augur ${{ steps.version.outputs.version }} via ${{ matrix.method }}"

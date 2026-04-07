@@ -162,3 +162,21 @@ augur --policy ./my-policies config.yaml
 ```
 
 Custom policies are **merged** with the built-in rules — your rules run alongside all default checks.
+
+## Security
+
+Every release is reproducibly built and signed:
+
+- **CycloneDX SBOMs** for every archive and every container image
+- **Cosign keyless signatures** (sigstore OIDC) on `checksums.txt` and on the published OCI image
+- **SLSA Level 3 build provenance** for binary artifacts
+
+Quick verification of a release:
+
+```sh
+cosign verify ghcr.io/starkross/augur:vX.Y.Z \
+  --certificate-identity-regexp 'https://github.com/starkross/augur/\.github/workflows/release\.yml@refs/tags/v.*' \
+  --certificate-oidc-issuer     'https://token.actions.githubusercontent.com'
+```
+
+See [SECURITY.md](SECURITY.md) for the full verification recipe (binaries, images, SLSA provenance, SBOMs) and the vulnerability disclosure process.
