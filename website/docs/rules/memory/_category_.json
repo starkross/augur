@@ -1,0 +1,9 @@
+{
+  "label": "Memory",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "title": "Memory rules",
+    "description": "batch and memory_limiter tuning."
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Pipeline",
+  "position": 4,
+  "link": {
+    "type": "generated-index",
+    "title": "Pipeline rules",
+    "description": "Processor ordering, connectors, duplicates, and sampling placement."
+  }
+}

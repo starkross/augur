@@ -1,0 +1,9 @@
+{
+  "label": "Extension",
+  "position": 7,
+  "link": {
+    "type": "generated-index",
+    "title": "Extension rules",
+    "description": "pprof, zpages, memory_ballast, and extension references."
+  }
+}

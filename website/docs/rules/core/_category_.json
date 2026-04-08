@@ -1,0 +1,9 @@
+{
+  "label": "Core",
+  "position": 1,
+  "link": {
+    "type": "generated-index",
+    "title": "Core rules",
+    "description": "Pipeline wiring, memory_limiter, batch, secrets, and unused-component checks."
+  }
+}
