@@ -1,0 +1,9 @@
+{
+  "label": "Lifecycle",
+  "position": 9,
+  "link": {
+    "type": "generated-index",
+    "title": "Lifecycle rules",
+    "description": "Collector telemetry and deprecated components."
+  }
+}

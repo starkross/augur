@@ -1,0 +1,9 @@
+{
+  "label": "Reliability",
+  "position": 8,
+  "link": {
+    "type": "generated-index",
+    "title": "Reliability rules",
+    "description": "Sampling consistency, persistent storage, and Kubernetes enrichment."
+  }
+}

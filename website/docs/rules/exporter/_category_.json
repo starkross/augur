@@ -1,0 +1,9 @@
+{
+  "label": "Exporter",
+  "position": 5,
+  "link": {
+    "type": "generated-index",
+    "title": "Exporter rules",
+    "description": "OTLP endpoint format, sending queue, retries, and compression."
+  }
+}
