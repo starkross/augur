@@ -126,6 +126,7 @@ warn contains msg if {
 	not base_type in pull_based
 	not exporter.retry_on_failure
 	not exporter.sending_queue
+	not exporter.max_retries
 	msg := sprintf("OTEL-017: exporter '%s' has no retry_on_failure or sending_queue. Risk of data loss.", [name])
 }
 

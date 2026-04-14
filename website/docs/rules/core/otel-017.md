@@ -13,11 +13,11 @@ description: Network exporters need retry and/or queueing to tolerate brief outa
 
 Any exporter that pushes data over the network will eventually see a transient failure — TLS handshake timeout, backend restart, rate limit, DNS blip. Without `retry_on_failure` or `sending_queue` the failed batch is dropped on the floor. Pull-based exporters (`prometheus`, `prometheusremotewrite`) and diagnostic ones (`debug`, `logging`) do not need this; everything else does.
 
-This rule fires when an exporter whose base type is not pull-based has neither `retry_on_failure` nor `sending_queue` configured.
+This rule fires when an exporter whose base type is not pull-based has neither `retry_on_failure` nor `sending_queue` configured. Exporters that implement their own retry mechanism via `max_retries` (e.g. `awsemf`) are also exempt.
 
 ## Options
 
-This rule has no options. The set of pull-based exporter types (`debug`, `logging`, `prometheus`, `prometheusremotewrite`) is exempted inside the policy.
+This rule has no options. The set of pull-based exporter types (`debug`, `logging`, `prometheus`, `prometheusremotewrite`) is exempted inside the policy. Exporters with `max_retries` configured (e.g. `awsemf`) are also silenced because they implement retries natively.
 
 ## Examples
 

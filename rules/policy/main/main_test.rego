@@ -114,6 +114,58 @@ test_020_warn_unused_receiver if {
 	contains(msg, "OTEL-020")
 }
 
+test_017_warn_exporter_no_retry_no_queue if {
+	val := {"endpoint": "backend:4317"}
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/otlp~1noresilience", "value": val},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "otlp/noresilience"},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+}
+
+test_017_pass_with_retry_on_failure if {
+	val := {"endpoint": "backend:4317", "retry_on_failure": {"enabled": true}}
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/otlp~1withretry", "value": val},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "otlp/withretry"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+test_017_pass_with_sending_queue if {
+	val := {"endpoint": "backend:4317", "sending_queue": {"enabled": true}}
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/otlp~1withqueue", "value": val},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "otlp/withqueue"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+test_017_pass_awsemf_with_max_retries if {
+	val := {"log_retention": 30, "max_retries": 3}
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/awsemf", "value": val},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsemf"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+test_017_warn_awsemf_without_max_retries if {
+	val := {"log_retention": 30}
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/awsemf", "value": val},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsemf"},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+}
+
 test_valid_config_no_denials if {
 	msgs := main.deny with input as valid_config
 	count(msgs) == 0
