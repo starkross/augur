@@ -121,14 +121,13 @@ warn contains msg if {
 
 warn contains msg if {
 	pull_based := {"debug", "logging", "prometheus", "prometheusremotewrite"}
-	has_native_retry := {"awsemf", "awscloudwatchlogs", "awsxray", "awss3"}
 	some name, exporter in input.exporters
 	base_type := split(name, "/")[0]
 	not base_type in pull_based
-	not base_type in has_native_retry
 	not exporter.retry_on_failure
 	not exporter.sending_queue
-	msg := sprintf("OTEL-017: exporter '%s' has no retry_on_failure or sending_queue. Risk of data loss.", [name])
+	not exporter.max_retries
+	msg := sprintf("OTEL-017: exporter '%s' has no retry_on_failure, sending_queue, or max_retries. Risk of data loss.", [name])
 }
 
 warn contains msg if {

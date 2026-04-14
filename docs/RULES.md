@@ -34,7 +34,7 @@
 | OTEL-014 | `memory_limiter` should be first processor in pipeline |
 | OTEL-015 | `debug`/`logging` exporter detected |
 | OTEL-016 | Telemetry log level set to `debug` |
-| OTEL-017 | Exporter missing `retry_on_failure`/`sending_queue` |
+| OTEL-017 | Exporter missing `retry_on_failure`/`sending_queue`/`max_retries` |
 | OTEL-018 | OTLP exporter without TLS on non-local endpoint |
 | OTEL-020 | Unused receiver |
 | OTEL-021 | Unused exporter |

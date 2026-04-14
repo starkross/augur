@@ -155,18 +155,19 @@ test_017_pass_awsemf_native_retry if {
 	not_contains_rule(msgs, "OTEL-017")
 }
 
-test_017_pass_awsemf_without_max_retries if {
+test_017_warn_awsemf_without_max_retries if {
 	val := {"log_retention": 30}
 	cfg := json.patch(valid_config, [
 		{"op": "add", "path": "/exporters/awsemf", "value": val},
 		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsemf"},
 	])
 	msgs := main.warn with input as cfg
-	not_contains_rule(msgs, "OTEL-017")
+	some msg in msgs
+	contains(msg, "OTEL-017")
 }
 
-test_017_pass_awsxray_native_retry if {
-	val := {"region": "us-east-1"}
+test_017_pass_awsxray_with_max_retries if {
+	val := {"region": "us-east-1", "max_retries": 2}
 	cfg := json.patch(valid_config, [
 		{"op": "add", "path": "/exporters/awsxray", "value": val},
 		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsxray"},
@@ -175,15 +176,14 @@ test_017_pass_awsxray_native_retry if {
 	not_contains_rule(msgs, "OTEL-017")
 }
 
-test_017_warn_non_aws_exporter_with_max_retries if {
+test_017_pass_any_exporter_with_max_retries if {
 	val := {"endpoint": "kafka:9092", "max_retries": 5}
 	cfg := json.patch(valid_config, [
 		{"op": "add", "path": "/exporters/kafka", "value": val},
 		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "kafka"},
 	])
 	msgs := main.warn with input as cfg
-	some msg in msgs
-	contains(msg, "OTEL-017")
+	not_contains_rule(msgs, "OTEL-017")
 }
 
 test_valid_config_no_denials if {

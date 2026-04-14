@@ -13,11 +13,11 @@ description: Network exporters need retry and/or queueing to tolerate brief outa
 
 Any exporter that pushes data over the network will eventually see a transient failure — TLS handshake timeout, backend restart, rate limit, DNS blip. Without `retry_on_failure` or `sending_queue` the failed batch is dropped on the floor. Pull-based exporters (`prometheus`, `prometheusremotewrite`) and diagnostic ones (`debug`, `logging`) do not need this; everything else does.
 
-This rule fires when an exporter whose base type is not pull-based has neither `retry_on_failure` nor `sending_queue` configured. AWS exporters that implement their own native retry mechanism (`awsemf`, `awscloudwatchlogs`, `awsxray`, `awss3`) are also exempt.
+This rule fires when an exporter whose base type is not pull-based has none of `retry_on_failure`, `sending_queue`, or `max_retries` configured. Exporters like `awsemf` and `awsxray` use `max_retries` as their native retry mechanism instead of the standard `retry_on_failure` helper — setting `max_retries` silences this rule.
 
 ## Options
 
-This rule has no options. The set of pull-based exporter types (`debug`, `logging`, `prometheus`, `prometheusremotewrite`) is exempted inside the policy. AWS exporters with native retry (`awsemf`, `awscloudwatchlogs`, `awsxray`, `awss3`) are also exempt because they implement retries outside the standard Collector helpers.
+This rule has no options. The set of pull-based exporter types (`debug`, `logging`, `prometheus`, `prometheusremotewrite`) is exempted inside the policy. Additionally, exporters that set `max_retries` (e.g. `awsemf`, `awsxray`) are exempt because `max_retries` is an alternative retry mechanism used by some exporters instead of the standard `retry_on_failure` helper.
 
 ## Examples
 
