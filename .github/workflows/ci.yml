@@ -25,9 +25,6 @@ jobs:
         with:
           go-version: "1.26"
 
-      - name: Sync policies
-        run: make sync-policies
-
       - name: golangci-lint
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9
         with:
@@ -44,9 +41,6 @@ jobs:
         with:
           go-version: "1.26"
 
-      - name: Sync policies
-        run: make sync-policies
-
       - name: go vet
         run: go vet ./...
 
@@ -60,9 +54,6 @@ jobs:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version: "1.26"
-
-      - name: Sync policies
-        run: make sync-policies
 
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@b8ec13ce4d00445d75da053c47498e6f9ec5d7d6 # v0.6.1
@@ -80,9 +71,6 @@ jobs:
       - uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
         with:
           go-version: "1.26"
-
-      - name: Sync policies
-        run: make sync-policies
 
       - name: Run tests
         run: go test -race -coverprofile=coverage.out ./...
@@ -110,9 +98,6 @@ jobs:
         with:
           go-version: "1.26"
 
-      - name: Sync policies
-        run: make sync-policies
-
       - name: Build
         env:
           CGO_ENABLED: "0"
@@ -133,9 +118,6 @@ jobs:
 
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@d1f380186385b4f64e00313f31743df8e4b89a77 # v1.1.4
-
-      - name: Sync policies
-        run: make sync-policies
 
       - name: govulncheck
         run: govulncheck ./...
@@ -162,7 +144,7 @@ jobs:
         uses: styrainc/setup-regal@33a142b1189004e0f14bf42b15972c67eecce776 # v1.0.0
 
       - name: Regal lint
-        run: regal lint policy/
+        run: regal lint rules/policy/
 
       - name: Install conftest
         run: |
@@ -174,7 +156,7 @@ jobs:
           rm conftest.tar.gz
 
       - name: Rego tests
-        run: conftest verify --policy policy/
+        run: conftest verify --policy rules/policy/
 
   tidy:
     name: Mod tidy check

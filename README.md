@@ -138,7 +138,7 @@ augur --policy ./my-policies config.yaml
 
 ## Custom policies
 
-All built-in rules live in `policy/` as standard Rego files. To add your own:
+All built-in rules live in `rules/policy/` as standard Rego files. To add your own:
 
 1. Create a directory with your custom rules:
 

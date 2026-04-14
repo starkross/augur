@@ -1,20 +1,14 @@
 BINARY     := augur
 VERSION    := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 LDFLAGS    := -s -w -X main.version=$(VERSION)
-POLICY_SRC := policy
-POLICY_DST := internal/rules/policy
+POLICY_SRC := rules/policy
 
-.PHONY: build test test-rego lint-rego snapshot install clean sync-policies demo
+.PHONY: build test test-rego lint-rego snapshot install clean demo
 
-sync-policies:
-	@rm -rf $(POLICY_DST)
-	@mkdir -p $(POLICY_DST)
-	@cp -R $(POLICY_SRC)/main $(POLICY_SRC)/lib $(POLICY_DST)/
-
-build: sync-policies
+build:
 	CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(BINARY) ./cmd/augur
 
-test: sync-policies
+test:
 	go test ./...
 
 test-rego:
@@ -25,7 +19,7 @@ lint-rego:
 	@command -v regal >/dev/null 2>&1 || { echo "regal needed: brew install styrainc/packages/regal"; exit 1; }
 	regal lint $(POLICY_SRC)/
 
-snapshot: sync-policies
+snapshot:
 	goreleaser build --snapshot --clean
 
 install: build
@@ -38,4 +32,4 @@ demo: build
 
 clean:
 	rm -f $(BINARY)
-	rm -rf dist/ $(POLICY_DST)
+	rm -rf dist/
