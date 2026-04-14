@@ -121,7 +121,11 @@ test_017_warn_otlp_no_retry if {
 test_017_pass_awsemf_with_max_retries if {
 	cfg := json.patch(valid_config, [
 		{"op": "add", "path": "/exporters/awsemf~1foo", "value": {"region": "us-east-1", "max_retries": 5}},
-		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsemf/foo"},
+		{"op": "add", "path": "/service/pipelines/metrics~1awsemf", "value": {
+			"receivers": ["otlp"],
+			"processors": ["memory_limiter", "batch"],
+			"exporters": ["awsemf/foo"],
+		}},
 	])
 	msgs := main.warn with input as cfg
 	not_contains_rule(msgs, "OTEL-017")
@@ -130,7 +134,11 @@ test_017_pass_awsemf_with_max_retries if {
 test_017_warn_awsemf_without_max_retries if {
 	cfg := json.patch(valid_config, [
 		{"op": "add", "path": "/exporters/awsemf~1bar", "value": {"region": "us-east-1"}},
-		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsemf/bar"},
+		{"op": "add", "path": "/service/pipelines/metrics~1awsemf", "value": {
+			"receivers": ["otlp"],
+			"processors": ["memory_limiter", "batch"],
+			"exporters": ["awsemf/bar"],
+		}},
 	])
 	msgs := main.warn with input as cfg
 	some msg in msgs
