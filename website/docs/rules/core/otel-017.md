@@ -15,20 +15,20 @@ Any exporter that pushes data over the network will eventually see a transient f
 
 This rule fires when an exporter whose base type is not pull-based has neither `retry_on_failure` nor `sending_queue` configured.
 
-### Exporter-specific alternative retry mechanisms
+### AWS exporter alternative retry (`max_retries`)
 
-Some AWS exporters provide their own retry mechanism (`max_retries`) instead of the standard `retry_on_failure`/`sending_queue` fields. The rule recognises these alternatives for an explicit allowlist of AWS exporters:
+Certain AWS exporters implement their own retry logic via `max_retries` instead of the standard `retry_on_failure`/`sending_queue` fields. The rule recognises this for the following exporter types:
 
 | Exporter | Alternative field | Notes |
 |----------|------------------|-------|
-| `awsemf` | `max_retries` | AWS CloudWatch EMF exporter uses its own retry logic |
-| `awscloudwatchlogs` | `max_retries` | AWS CloudWatch Logs exporter uses its own retry logic |
-| `awsxray` | `max_retries` | AWS X-Ray exporter uses its own retry logic |
-| `awss3` | `max_retries` | AWS S3 exporter uses its own retry logic |
+| `awsemf` | `max_retries` | AWS CloudWatch EMF exporter |
+| `awscloudwatchlogs` | `max_retries` | AWS CloudWatch Logs exporter |
+| `awsxray` | `max_retries` | AWS X-Ray exporter |
+| `awss3` | `max_retries` | AWS S3 exporter |
 
-When one of these alternative fields is configured, the rule does **not** fire.
+When `max_retries` is set on one of these exporters, the rule does **not** fire. Note that `max_retries` only covers retry — it does not provide durable queueing like `sending_queue`. This is intentional: these AWS exporters manage back-pressure and transient failures through their own SDK-level retry logic, and adding `sending_queue` is not required (though it can still be configured for additional durability).
 
-> **Note on `sending_queue`:** The `max_retries` exemption intentionally covers the absence of `sending_queue` as well. AWS exporters manage retry and buffering internally — their SDK-level retry with backoff is sufficient for transient failures, and adding a Collector-level `sending_queue` on top is unnecessary. If you need durable queueing (e.g. surviving Collector restarts), configure `sending_queue` with persistent storage explicitly.
+The `max_retries` exemption applies **only** to the AWS exporters listed above. Other exporters with a `max_retries` field will still trigger this rule — use `retry_on_failure` and/or `sending_queue` for those.
 
 ## Options
 
