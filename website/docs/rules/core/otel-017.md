@@ -15,6 +15,16 @@ Any exporter that pushes data over the network will eventually see a transient f
 
 This rule fires when an exporter whose base type is not pull-based has neither `retry_on_failure` nor `sending_queue` configured.
 
+### Exporter-specific alternative retry mechanisms
+
+Some exporters provide their own retry mechanism instead of the standard `retry_on_failure`/`sending_queue` fields. The rule recognises these alternatives:
+
+| Exporter | Alternative field | Notes |
+|----------|------------------|-------|
+| `awsemf` | `max_retries` | AWS CloudWatch EMF exporter uses its own retry logic |
+
+When one of these alternative fields is configured, the rule does **not** fire.
+
 ## Options
 
 This rule has no options. The set of pull-based exporter types (`debug`, `logging`, `prometheus`, `prometheusremotewrite`) is exempted inside the policy.
@@ -45,6 +55,20 @@ exporters:
       enabled: true
       num_consumers: 10
       queue_size: 5000
+```
+
+:::
+
+:::tip[Prefer — AWS CloudWatch EMF]
+
+The `awsemf` exporter uses `max_retries` as its own retry mechanism. Configuring it satisfies the rule:
+
+```yaml
+exporters:
+  awsemf/production:
+    region: us-east-1
+    log_group_name: /ecs/otel
+    max_retries: 5
 ```
 
 :::
