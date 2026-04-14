@@ -15,6 +15,15 @@ Any exporter that pushes data over the network will eventually see a transient f
 
 This rule fires when an exporter whose base type is not pull-based has neither `retry_on_failure` nor `sending_queue` configured.
 
+### Exporter-specific alternative retry mechanisms
+
+Some exporters implement their own retry mechanism instead of the standard `retry_on_failure`/`sending_queue` fields. The rule recognises these alternatives and does not fire when they are configured:
+
+| Exporter  | Alternative field | Notes |
+|-----------|-------------------|-------|
+| `awsemf`  | `max_retries`     | AWS CloudWatch EMF exporter — only exposes `max_retries` (via the AWS SDK) |
+| `awsxray` | `max_retries`     | AWS X-Ray exporter — only exposes `max_retries` (via the AWS SDK) |
+
 ## Options
 
 This rule has no options. The set of pull-based exporter types (`debug`, `logging`, `prometheus`, `prometheusremotewrite`) is exempted inside the policy.
@@ -49,6 +58,23 @@ exporters:
 
 :::
 
+:::tip[Prefer — AWS CloudWatch EMF / X-Ray]
+
+The `awsemf` and `awsxray` exporters use `max_retries` as their own retry mechanism (they do not expose `retry_on_failure` or `sending_queue`). Configuring it satisfies the rule:
+
+```yaml
+exporters:
+  awsemf/production:
+    region: us-east-1
+    log_group_name: /ecs/otel
+    max_retries: 5
+  awsxray:
+    region: us-east-1
+    max_retries: 3
+```
+
+:::
+
 ## When Not To Use It
 
 Never for production. Leave enabled so any forgotten retry/queue configuration is flagged.
@@ -71,4 +97,4 @@ Available since augur v0.1.0.
 
 ## Resources
 
-- Rule source: [`policy/main/main.rego`](https://github.com/starkross/augur/blob/main/policy/main/main.rego)
+- Rule source: [`rules/policy/main/main.rego`](https://github.com/starkross/augur/blob/main/rules/policy/main/main.rego)

@@ -126,7 +126,19 @@ warn contains msg if {
 	not base_type in pull_based
 	not exporter.retry_on_failure
 	not exporter.sending_queue
+	not _exporter_has_alt_retry(base_type, exporter)
 	msg := sprintf("OTEL-017: exporter '%s' has no retry_on_failure or sending_queue. Risk of data loss.", [name])
+}
+
+# Some exporters implement their own retry mechanism instead of the standard
+# retry_on_failure/sending_queue fields. Recognise those alternatives here so
+# OTEL-017 does not fire for correctly-configured exporters.
+#
+# awsemf and awsxray only expose max_retries (via awsutil.AWSSessionSettings);
+# they do not support retry_on_failure or sending_queue at all.
+_exporter_has_alt_retry(base_type, exporter) if {
+	base_type in {"awsemf", "awsxray"}
+	exporter.max_retries
 }
 
 warn contains msg if {
