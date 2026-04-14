@@ -4,7 +4,6 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN rm -rf internal/rules/policy && mkdir -p internal/rules/policy && cp -R policy/main policy/lib internal/rules/policy/
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /augur ./cmd/augur
 
 # alpine:3.20

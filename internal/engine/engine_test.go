@@ -6,7 +6,7 @@ import (
 	"testing/fstest"
 
 	"github.com/starkross/augur/internal/engine"
-	"github.com/starkross/augur/internal/rules"
+	"github.com/starkross/augur/rules"
 )
 
 func TestNew_Embedded(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 	"github.com/starkross/augur/internal/config"
 	"github.com/starkross/augur/internal/engine"
 	"github.com/starkross/augur/internal/output"
-	"github.com/starkross/augur/internal/rules"
+	"github.com/starkross/augur/rules"
 )
 
 func newRootCmd(version string) *cobra.Command {
