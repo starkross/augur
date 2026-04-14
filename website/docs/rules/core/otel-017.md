@@ -17,18 +17,13 @@ This rule fires when an exporter whose base type is not pull-based has neither `
 
 ### Exporter-specific alternative retry mechanisms
 
-Some AWS exporters provide their own retry mechanism (`max_retries`) instead of the standard `retry_on_failure`/`sending_queue` fields. The rule recognises these alternatives for an explicit allowlist of AWS exporters:
+Some exporters provide their own retry mechanism instead of the standard `retry_on_failure`/`sending_queue` fields. The rule recognises these alternatives:
 
 | Exporter | Alternative field | Notes |
 |----------|------------------|-------|
 | `awsemf` | `max_retries` | AWS CloudWatch EMF exporter uses its own retry logic |
-| `awscloudwatchlogs` | `max_retries` | AWS CloudWatch Logs exporter uses its own retry logic |
-| `awsxray` | `max_retries` | AWS X-Ray exporter uses its own retry logic |
-| `awss3` | `max_retries` | AWS S3 exporter uses its own retry logic |
 
 When one of these alternative fields is configured, the rule does **not** fire.
-
-> **Note on `sending_queue`:** The `max_retries` exemption intentionally covers the absence of `sending_queue` as well. AWS exporters manage retry and buffering internally — their SDK-level retry with backoff is sufficient for transient failures, and adding a Collector-level `sending_queue` on top is unnecessary. If you need durable queueing (e.g. surviving Collector restarts), configure `sending_queue` with persistent storage explicitly.
 
 ## Options
 
