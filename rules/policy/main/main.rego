@@ -126,7 +126,24 @@ warn contains msg if {
 	not base_type in pull_based
 	not exporter.retry_on_failure
 	not exporter.sending_queue
-	msg := sprintf("OTEL-017: exporter '%s' has no retry_on_failure or sending_queue. Risk of data loss.", [name])
+	not _exporter_has_alt_retry(base_type, exporter)
+	msg := sprintf("OTEL-017: exporter '%s' has no retry_on_failure, sending_queue, or built-in retry (max_retries). Risk of data loss.", [name])
+}
+
+# AWS exporters that implement their own retry via max_retries.
+# These exporters handle retry internally and do not require the standard
+# retry_on_failure/sending_queue fields. Durable queueing is not provided,
+# but these exporters manage back-pressure and transient failures through
+# their own SDK-level retry logic. Matches the allowlist pattern used for
+# pull_based exporters above.
+_aws_retry_exporters := {"awsemf", "awscloudwatchlogs", "awsxray", "awss3"}
+
+# Helper: recognises exporter-specific alternative retry mechanisms.
+# Only applies to the explicit AWS allowlist — other exporters with
+# max_retries still require retry_on_failure/sending_queue.
+_exporter_has_alt_retry(base_type, exporter) if {
+	base_type in _aws_retry_exporters
+	exporter.max_retries
 }
 
 warn contains msg if {

@@ -15,9 +15,26 @@ Any exporter that pushes data over the network will eventually see a transient f
 
 This rule fires when an exporter whose base type is not pull-based has neither `retry_on_failure` nor `sending_queue` configured.
 
+### AWS exporter alternative retry (`max_retries`)
+
+Certain AWS exporters implement their own retry logic via `max_retries` instead of the standard `retry_on_failure`/`sending_queue` fields. The rule recognises this for the following exporter types:
+
+| Exporter | Alternative field | Notes |
+|----------|------------------|-------|
+| `awsemf` | `max_retries` | AWS CloudWatch EMF exporter |
+| `awscloudwatchlogs` | `max_retries` | AWS CloudWatch Logs exporter |
+| `awsxray` | `max_retries` | AWS X-Ray exporter |
+| `awss3` | `max_retries` | AWS S3 exporter |
+
+When `max_retries` is set on one of these exporters, the rule does **not** fire.
+
+> **Note on `sending_queue`:** The `max_retries` exemption intentionally covers the absence of `sending_queue` as well. `max_retries` only provides retry — it does not offer durable queueing like `sending_queue`. This is by design: AWS exporters manage back-pressure and transient failures through their own SDK-level retry logic, and adding a Collector-level `sending_queue` on top is unnecessary for most use cases. If you need durable queueing (e.g. surviving Collector restarts), configure `sending_queue` with persistent storage explicitly.
+
+The `max_retries` exemption applies **only** to the AWS exporters listed above. Other exporters with a `max_retries` field will still trigger this rule — use `retry_on_failure` and/or `sending_queue` for those.
+
 ## Options
 
-This rule has no options. The set of pull-based exporter types (`debug`, `logging`, `prometheus`, `prometheusremotewrite`) is exempted inside the policy.
+This rule has no options. The set of pull-based exporter types (`debug`, `logging`, `prometheus`, `prometheusremotewrite`) and the AWS exporter allowlist (`awsemf`, `awscloudwatchlogs`, `awsxray`, `awss3`) are defined inside the policy.
 
 ## Examples
 
@@ -45,6 +62,30 @@ exporters:
       enabled: true
       num_consumers: 10
       queue_size: 5000
+```
+
+:::
+
+### AWS exporter with `max_retries`
+
+:::tip[Prefer]
+
+```yaml
+exporters:
+  awsemf/prod:
+    log_retention: 30
+    max_retries: 3
+```
+
+:::
+
+:::warning[Avoid]
+
+```yaml
+exporters:
+  awsemf/prod:
+    log_retention: 30
+    # no max_retries, retry_on_failure, or sending_queue
 ```
 
 :::

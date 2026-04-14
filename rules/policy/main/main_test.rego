@@ -107,6 +107,56 @@ test_015_warn_debug_exporter if {
 	contains(msg, "OTEL-015")
 }
 
+test_017_warn_no_retry_or_queue if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/otlp~1noop", "value": {"endpoint": "backend:4317"}},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "otlp/noop"},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+	contains(msg, "otlp/noop")
+}
+
+test_017_pass_awsemf_with_max_retries if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/awsemf~1prod", "value": {"log_retention": 30, "max_retries": 3}},
+		{"op": "add", "path": "/service/pipelines/metrics", "value": {
+			"receivers": ["otlp"],
+			"processors": ["memory_limiter", "batch"],
+			"exporters": ["awsemf/prod"],
+		}},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+test_017_warn_awsemf_without_max_retries if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/awsemf~1noretry", "value": {"log_retention": 30}},
+		{"op": "add", "path": "/service/pipelines/metrics", "value": {
+			"receivers": ["otlp"],
+			"processors": ["memory_limiter", "batch"],
+			"exporters": ["awsemf/noretry"],
+		}},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+	contains(msg, "awsemf/noretry")
+}
+
+test_017_warn_non_aws_exporter_with_max_retries if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/kafka~1logs", "value": {"brokers": ["localhost:9092"], "max_retries": 5}},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "kafka/logs"},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+	contains(msg, "kafka/logs")
+}
+
 test_020_warn_unused_receiver if {
 	cfg := json.patch(valid_config, [{"op": "add", "path": "/receivers/jaeger", "value": {"protocols": {"grpc": {}}}}])
 	msgs := main.warn with input as cfg
