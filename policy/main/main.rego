@@ -126,14 +126,7 @@ warn contains msg if {
 	not base_type in pull_based
 	not exporter.retry_on_failure
 	not exporter.sending_queue
-	not _exporter_has_alt_retry(base_type, exporter)
 	msg := sprintf("OTEL-017: exporter '%s' has no retry_on_failure or sending_queue. Risk of data loss.", [name])
-}
-
-# Helper: recognises exporter-specific alternative retry mechanisms.
-_exporter_has_alt_retry(base_type, exporter) if {
-	base_type == "awsemf"
-	exporter.max_retries
 }
 
 warn contains msg if {
