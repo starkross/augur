@@ -84,6 +84,13 @@ test_010_pass_on_localhost_bind if {
 	not_contains_rule(msgs, "OTEL-010")
 }
 
+test_018_pass_on_unix_scheme if {
+	val := {"endpoint": "unix:///var/run/otel.sock"}
+	cfg := json.patch(valid_config, [{"op": "replace", "path": "/exporters/otlp~1backend", "value": val}])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-018")
+}
+
 test_013_warn_batch_not_last if {
 	val := ["batch", "memory_limiter"]
 	cfg := json.patch(valid_config, [{"op": "replace", "path": "/service/pipelines/traces/processors", "value": val}])

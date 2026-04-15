@@ -81,6 +81,7 @@ warn contains msg if {
 	endpoint != ""
 	not contains(endpoint, "localhost")
 	not contains(endpoint, "127.0.0.1")
+	object.get(proto_cfg, "transport", "") != "unix"
 	not proto_cfg.tls
 	msg := sprintf("OTEL-033: receiver '%s/%s' on non-localhost endpoint '%s' without TLS.", [name, proto, endpoint])
 }
