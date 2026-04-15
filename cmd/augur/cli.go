@@ -26,8 +26,12 @@ func newRootCmd(version string) *cobra.Command {
 	)
 
 	root := &cobra.Command{
-		Use:     "augur [flags] <config.yaml> [config.yaml...]",
-		Short:   "Lint OpenTelemetry Collector configs for best practices",
+		Use:   "augur [flags] <config.yaml> [config.yaml...]",
+		Short: "Lint OpenTelemetry Collector configs for best practices",
+		Long: "Lint OpenTelemetry Collector configs for best practices.\n\n" +
+			"When multiple files are provided, they are deep-merged into a single " +
+			"effective config before linting, matching the collector's own --config " +
+			"behavior (maps merge recursively; slices and scalars are replaced by the later file).",
 		Version: version,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -84,31 +88,30 @@ func run(files []string, opts runOpts) error {
 		return err
 	}
 
-	results := make([]*engine.Result, 0, len(files))
+	input, err := config.LoadMerged(files)
+	if err != nil {
+		return err
+	}
+
+	label := files[0]
+	if len(files) > 1 {
+		label = "merged: " + strings.Join(files, ", ")
+	}
+
+	result, evalErr := eng.Eval(ctx, label, input)
+	if evalErr != nil {
+		return fmt.Errorf("evaluating %q: %w", label, evalErr)
+	}
+
+	filtered := filterFindings(result, opts)
 	hasFailures := false
-
-	for _, file := range files {
-		input, loadErr := config.LoadYAML(file)
-		if loadErr != nil {
-			return loadErr
-		}
-
-		result, evalErr := eng.Eval(ctx, file, input)
-		if evalErr != nil {
-			return fmt.Errorf("evaluating %q: %w", file, evalErr)
-		}
-
-		filtered := filterFindings(result, opts)
-		results = append(results, filtered)
-
-		for _, finding := range filtered.Findings {
-			if finding.Severity == engine.SeverityDeny || (finding.Severity == engine.SeverityWarn && opts.strict) {
-				hasFailures = true
-			}
+	for _, finding := range filtered.Findings {
+		if finding.Severity == engine.SeverityDeny || (finding.Severity == engine.SeverityWarn && opts.strict) {
+			hasFailures = true
 		}
 	}
 
-	if err := formatter.Format(os.Stdout, results); err != nil {
+	if err := formatter.Format(os.Stdout, []*engine.Result{filtered}); err != nil {
 		return fmt.Errorf("formatting output: %w", err)
 	}
 

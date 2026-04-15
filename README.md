@@ -117,11 +117,29 @@ augur [flags] <config.yaml> [config.yaml...]
 | `--no-color` | Disable colored output | `false` |
 | `-p, --policy` | Additional policy directory (merged with built-in rules) | |
 
+### Multiple config files
+
+When you pass more than one file, augur deep-merges them into a single effective config before linting — the same way the OpenTelemetry Collector combines multiple `--config` flags:
+
+```sh
+augur common.yaml client.yaml
+```
+
+Merge rules (matching the collector's confmap):
+
+| Value type | Behavior |
+|------------|----------|
+| Map        | Deep-merged recursively. Later files add keys and override scalar leaves. |
+| Scalar     | Later file wins. |
+| Slice      | Replaced wholesale by the later file. |
+
+To lint several standalone configs independently, invoke augur once per file.
+
 ### Examples
 
 ```sh
-# Lint multiple files
-augur gateway.yaml agent.yaml
+# Merge two files
+augur gateway.yaml overrides.yaml
 
 # Strict mode — warnings become errors
 augur --strict config.yaml

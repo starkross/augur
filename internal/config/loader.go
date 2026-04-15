@@ -41,3 +41,48 @@ func LoadYAML(path string) (out map[string]any, err error) {
 
 	return out, nil
 }
+
+// LoadMerged loads each path and deep-merges them in order, matching the
+// OpenTelemetry Collector's confmap semantics: maps merge recursively, scalars
+// and slices are replaced by the later file.
+func LoadMerged(paths []string) (map[string]any, error) {
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("no config files provided")
+	}
+
+	merged, err := LoadYAML(paths[0])
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range paths[1:] {
+		next, err := LoadYAML(p)
+		if err != nil {
+			return nil, err
+		}
+		merged = mergeMap(merged, next)
+	}
+
+	return merged, nil
+}
+
+func mergeMap(dst, src map[string]any) map[string]any {
+	if dst == nil {
+		dst = map[string]any{}
+	}
+	for k, sv := range src {
+		dv, ok := dst[k]
+		if !ok {
+			dst[k] = sv
+			continue
+		}
+		if dm, dstIsMap := dv.(map[string]any); dstIsMap {
+			if sm, srcIsMap := sv.(map[string]any); srcIsMap {
+				dst[k] = mergeMap(dm, sm)
+				continue
+			}
+		}
+		dst[k] = sv
+	}
+	return dst
+}
