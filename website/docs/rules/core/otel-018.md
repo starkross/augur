@@ -13,7 +13,7 @@ description: OTLP traffic to a remote backend should be encrypted.
 
 OTLP carries spans, metrics, and logs that can contain request payloads, user identifiers, stack traces, and internal hostnames. Shipping any of that to a remote endpoint without TLS means passive network observers can read it and active ones can tamper with it. Local endpoints (`localhost`, `127.0.0.1`) are exempt.
 
-This rule fires on `otlp*` exporters whose `endpoint` is not `localhost`/`127.0.0.1`, whose URL does not start with `https://`, and that have no `tls` block.
+This rule fires on `otlp*` exporters whose `endpoint` is not `localhost`/`127.0.0.1`, whose URL does not start with `https://` or `unix:`, and that have no `tls` block. Unix-socket endpoints are exempt since they are local IPC whose access is controlled by filesystem permissions.
 
 ## Options
 

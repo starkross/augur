@@ -13,7 +13,7 @@ description: A remote receiver without TLS accepts cleartext telemetry from anyw
 
 If a receiver is bound to a non-localhost endpoint (an interface other than `127.0.0.1`/`localhost`), it is almost certainly reachable from another host on the network. Without a `tls` block, the receiver will happily accept cleartext OTLP/HTTP from any caller that can reach the port — so anyone between the client and the Collector can read the traffic or inject it.
 
-This rule fires when a receiver protocol has an `endpoint` that does not contain `localhost` or `127.0.0.1` and no `tls` block is configured.
+This rule fires when a receiver protocol has an `endpoint` that does not contain `localhost` or `127.0.0.1` and no `tls` block is configured. Receivers using `transport: "unix"` are exempt, since Unix domain sockets are local IPC whose access is controlled by filesystem permissions.
 
 ## Options
 

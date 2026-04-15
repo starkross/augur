@@ -42,6 +42,13 @@ test_033_pass_on_localhost if {
 	not_contains_rule(msgs, "OTEL-033")
 }
 
+test_033_pass_on_unix_transport if {
+	val := {"protocols": {"grpc": {"endpoint": "/run/xxxx-metrics.sock", "transport": "unix"}}}
+	cfg := json.patch(valid_config, [{"op": "replace", "path": "/receivers/otlp", "value": val}])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-033")
+}
+
 test_034_deny_cors_wildcard if {
 	val := {"protocols": {"http": {"cors": {"allowed_origins": ["*"]}, "endpoint": "localhost:4318"}}}
 	cfg := json.patch(valid_config, [{"op": "replace", "path": "/receivers/otlp", "value": val}])

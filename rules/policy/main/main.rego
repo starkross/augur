@@ -136,6 +136,7 @@ warn contains msg if {
 	not exporter.tls
 	endpoint := object.get(exporter, "endpoint", "")
 	not startswith(endpoint, "https://")
+	not startswith(endpoint, "unix:")
 	not contains(endpoint, "localhost")
 	not contains(endpoint, "127.0.0.1")
 	msg := sprintf("OTEL-018: exporter '%s' has no TLS configured for non-local endpoint.", [name])
