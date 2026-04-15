@@ -107,6 +107,118 @@ test_015_warn_debug_exporter if {
 	contains(msg, "OTEL-015")
 }
 
+test_017_warn_otlp_no_retry if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/otlp~1noretry", "value": {"endpoint": "backend:4317"}},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "otlp/noretry"},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+	contains(msg, "otlp/noretry")
+}
+
+test_017_pass_awsemf_with_max_retries if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/awsemf~1foo", "value": {"region": "us-east-1", "max_retries": 5}},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsemf/foo"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+test_017_warn_awsemf_without_max_retries if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/awsemf~1bar", "value": {"region": "us-east-1"}},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsemf/bar"},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+	contains(msg, "awsemf/bar")
+}
+
+test_017_pass_awsxray_with_max_retries if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/awsxray", "value": {"region": "us-east-1", "max_retries": 3}},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsxray"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+test_017_warn_awsxray_without_max_retries if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/awsxray", "value": {"region": "us-east-1"}},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awsxray"},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+	contains(msg, "awsxray")
+}
+
+test_017_pass_awscloudwatchlogs_with_max_retries if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/awscloudwatchlogs", "value": {"region": "us-east-1", "max_retries": 3}},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awscloudwatchlogs"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+test_017_pass_awss3_with_retry_max_attempts if {
+	cfg := json.patch(valid_config, [
+		{
+			"op": "add", "path": "/exporters/awss3",
+			"value": {"s3uploader": {"region": "us-east-1", "s3_bucket": "b", "retry_max_attempts": 5}},
+		},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awss3"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+test_017_pass_awss3_with_retry_mode_standard if {
+	cfg := json.patch(valid_config, [
+		{
+			"op": "add", "path": "/exporters/awss3",
+			"value": {"s3uploader": {"region": "us-east-1", "s3_bucket": "b", "retry_mode": "standard"}},
+		},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awss3"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+test_017_warn_awss3_with_retry_mode_nop if {
+	cfg := json.patch(valid_config, [
+		{
+			"op": "add", "path": "/exporters/awss3",
+			"value": {"s3uploader": {"region": "us-east-1", "s3_bucket": "b", "retry_mode": "nop"}},
+		},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awss3"},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+	contains(msg, "awss3")
+}
+
+test_017_warn_awss3_without_retry if {
+	cfg := json.patch(valid_config, [
+		{
+			"op": "add", "path": "/exporters/awss3",
+			"value": {"s3uploader": {"region": "us-east-1", "s3_bucket": "b"}},
+		},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "awss3"},
+	])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-017")
+	contains(msg, "awss3")
+}
+
 test_020_warn_unused_receiver if {
 	cfg := json.patch(valid_config, [{"op": "add", "path": "/receivers/jaeger", "value": {"protocols": {"grpc": {}}}}])
 	msgs := main.warn with input as cfg
