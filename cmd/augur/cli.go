@@ -26,7 +26,7 @@ func newRootCmd(version string) *cobra.Command {
 	)
 
 	root := &cobra.Command{
-		Use: "augur [flags] <config.yaml> [config.yaml...]",
+		Use:   "augur [flags] <config.yaml> [config.yaml...]",
 		Short: "Lint OpenTelemetry Collector configs for best practices",
 		Long: "Lint OpenTelemetry Collector configs for best practices.\n\n" +
 			"When multiple files are provided, they are deep-merged into a single " +

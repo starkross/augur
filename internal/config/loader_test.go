@@ -98,8 +98,10 @@ func TestLoadMerged_ScalarLaterWins(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadMerged: %v", err)
 	}
-	got := m["service"].(map[string]any)["telemetry"].(map[string]any)["logs"].(map[string]any)["level"]
-	if got != "debug" {
+	service, _ := m["service"].(map[string]any)
+	telemetry, _ := service["telemetry"].(map[string]any)
+	logs, _ := telemetry["logs"].(map[string]any)
+	if got := logs["level"]; got != "debug" {
 		t.Errorf("expected level=debug, got %v", got)
 	}
 }
@@ -113,12 +115,14 @@ func TestLoadMerged_SliceReplace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadMerged: %v", err)
 	}
-	traces := m["service"].(map[string]any)["pipelines"].(map[string]any)["traces"].(map[string]any)
-	recv := traces["receivers"].([]any)
+	service, _ := m["service"].(map[string]any)
+	pipelines, _ := service["pipelines"].(map[string]any)
+	traces, _ := pipelines["traces"].(map[string]any)
+	recv, _ := traces["receivers"].([]any)
 	if len(recv) != 1 || recv[0] != "kafka" {
 		t.Errorf("expected receivers=[kafka], got %v", recv)
 	}
-	procs := traces["processors"].([]any)
+	procs, _ := traces["processors"].([]any)
 	if len(procs) != 1 || procs[0] != "batch" {
 		t.Errorf("expected processors=[batch] preserved, got %v", procs)
 	}
