@@ -126,6 +126,7 @@ warn contains msg if {
 	not base_type in pull_based
 	not exporter.retry_on_failure
 	not exporter.sending_queue
+	not _exporter_has_alt_retry(base_type, exporter)
 	msg := sprintf("OTEL-017: exporter '%s' has no retry_on_failure or sending_queue. Risk of data loss.", [name])
 }
 
@@ -157,4 +158,27 @@ warn contains msg if {
 	some name, _ in input.processors
 	not name in lib.all_used_processors
 	msg := sprintf("OTEL-022: processor '%s' is configured but not used in any pipeline.", [name])
+}
+
+# Some exporters expose a max_retries field (via awsutil.AWSSessionSettings)
+# as an alternative retry mechanism to the standard retry_on_failure /
+# sending_queue helpers. Configuring max_retries on any of these satisfies
+# OTEL-017, even when the exporter additionally supports the standard fields.
+_exporter_has_alt_retry(base_type, exporter) if {
+	base_type in {"awsemf", "awsxray", "awscloudwatchlogs"}
+	exporter.max_retries
+}
+
+# awss3 has no top-level retry_on_failure; retries are configured via the
+# nested s3uploader block (SDK-level retries). A positive retry_max_attempts
+# or a retry_mode other than "nop" means SDK retry is active.
+_exporter_has_alt_retry(base_type, exporter) if {
+	base_type == "awss3"
+	exporter.s3uploader.retry_max_attempts > 0
+}
+
+_exporter_has_alt_retry(base_type, exporter) if {
+	base_type == "awss3"
+	mode := exporter.s3uploader.retry_mode
+	mode != "nop"
 }
