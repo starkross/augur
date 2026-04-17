@@ -6,19 +6,19 @@ import (
 	"io"
 	"strings"
 
-	"github.com/starkross/augur/internal/engine"
+	"github.com/starkross/augur"
 )
 
 // Formatter formats lint results and writes them to the given writer.
 type Formatter interface {
-	Format(w io.Writer, results []*engine.Result) error
+	Format(w io.Writer, results []*augur.Result) error
 }
 
 // TextFormatter writes human-readable colored output.
 type TextFormatter struct{ NoColor bool }
 
 // Format writes results as colored text to w.
-func (f *TextFormatter) Format(w io.Writer, results []*engine.Result) error {
+func (f *TextFormatter) Format(w io.Writer, results []*augur.Result) error {
 	var werr error
 	printf := func(format string, a ...any) {
 		if werr == nil {
@@ -34,10 +34,10 @@ func (f *TextFormatter) Format(w io.Writer, results []*engine.Result) error {
 		printf("%s\n", f.bold(r.File))
 		for _, finding := range r.Findings {
 			switch finding.Severity {
-			case engine.SeverityDeny:
+			case augur.SeverityDeny:
 				printf("  %s %s\n", f.red("FAIL"), finding.Message)
 				denies++
-			case engine.SeverityWarn:
+			case augur.SeverityWarn:
 				printf("  %s %s\n", f.yellow("WARN"), finding.Message)
 				warns++
 			}
@@ -87,7 +87,7 @@ func (f *TextFormatter) bold(s string) string {
 type JSONFormatter struct{}
 
 type jsonOutput struct {
-	Files   []*engine.Result `json:"files"`
+	Files   []*augur.Result `json:"files"`
 	Summary jsonSummary      `json:"summary"`
 }
 
@@ -99,16 +99,16 @@ type jsonSummary struct {
 }
 
 // Format writes results as indented JSON to w.
-func (f *JSONFormatter) Format(w io.Writer, results []*engine.Result) error {
+func (f *JSONFormatter) Format(w io.Writer, results []*augur.Result) error {
 	out := jsonOutput{Files: results}
 	for _, r := range results {
 		hasIssue := false
 		for _, finding := range r.Findings {
 			switch finding.Severity {
-			case engine.SeverityDeny:
+			case augur.SeverityDeny:
 				out.Summary.Failures++
 				hasIssue = true
-			case engine.SeverityWarn:
+			case augur.SeverityWarn:
 				out.Summary.Warnings++
 				hasIssue = true
 			}
@@ -127,11 +127,11 @@ func (f *JSONFormatter) Format(w io.Writer, results []*engine.Result) error {
 type GitHubFormatter struct{}
 
 // Format writes results as ::error and ::warning annotations to w.
-func (f *GitHubFormatter) Format(w io.Writer, results []*engine.Result) error {
+func (f *GitHubFormatter) Format(w io.Writer, results []*augur.Result) error {
 	for _, r := range results {
 		for _, finding := range r.Findings {
 			level := "warning"
-			if finding.Severity == engine.SeverityDeny {
+			if finding.Severity == augur.SeverityDeny {
 				level = "error"
 			}
 			if _, err := fmt.Fprintf(w, "::%s file=%s,title=%s::%s\n",

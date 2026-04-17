@@ -12,19 +12,28 @@ import (
 )
 
 // Severity is the severity level of a policy finding.
-type Severity = engine.Severity
+type Severity string
 
-// Severity constants re-exported from the policy engine.
 const (
-	SeverityDeny = engine.SeverityDeny
-	SeverityWarn = engine.SeverityWarn
+	// SeverityDeny indicates a blocking violation that must be fixed.
+	SeverityDeny Severity = "deny"
+	// SeverityWarn indicates an advisory finding for best practices.
+	SeverityWarn Severity = "warn"
 )
 
 // Finding represents a single policy violation.
-type Finding = engine.Finding
+type Finding struct {
+	RuleID   string   `json:"rule_id"`
+	Severity Severity `json:"severity"`
+	Message  string   `json:"message"`
+	File     string   `json:"file"`
+}
 
 // Result holds the findings produced by a single lint evaluation.
-type Result = engine.Result
+type Result struct {
+	File     string    `json:"file"`
+	Findings []Finding `json:"findings"`
+}
 
 // Linter evaluates OpenTelemetry Collector configs against a compiled policy
 // set. A Linter is safe for concurrent use.
@@ -74,7 +83,7 @@ func (l *Linter) Lint(ctx context.Context, label string, input map[string]any) (
 	if err != nil {
 		return nil, err
 	}
-	return l.filter(r), nil
+	return l.filter(fromEngineResult(r)), nil
 }
 
 // LintYAML parses raw YAML bytes and evaluates the resulting config.
@@ -111,6 +120,19 @@ func (l *Linter) LintFiles(ctx context.Context, paths []string) (*Result, error)
 		label = "merged: " + strings.Join(paths, ", ")
 	}
 	return l.Lint(ctx, label, m)
+}
+
+func fromEngineResult(r *engine.Result) *Result {
+	findings := make([]Finding, len(r.Findings))
+	for i, f := range r.Findings {
+		findings[i] = Finding{
+			RuleID:   f.RuleID,
+			Severity: Severity(f.Severity),
+			Message:  f.Message,
+			File:     f.File,
+		}
+	}
+	return &Result{File: r.File, Findings: findings}
 }
 
 func (l *Linter) filter(r *Result) *Result {

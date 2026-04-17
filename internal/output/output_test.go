@@ -6,24 +6,24 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/starkross/augur/internal/engine"
+	"github.com/starkross/augur"
 	"github.com/starkross/augur/internal/output"
 )
 
-func sampleResults() []*engine.Result {
-	return []*engine.Result{
+func sampleResults() []*augur.Result {
+	return []*augur.Result{
 		{
 			File: "bad.yaml",
-			Findings: []engine.Finding{
-				{RuleID: "OTEL-001", Severity: engine.SeverityDeny, Message: "OTEL-001: missing memory_limiter", File: "bad.yaml"},
-				{RuleID: "OTEL-010", Severity: engine.SeverityWarn, Message: "OTEL-010: binds to 0.0.0.0", File: "bad.yaml"},
+			Findings: []augur.Finding{
+				{RuleID: "OTEL-001", Severity: augur.SeverityDeny, Message: "OTEL-001: missing memory_limiter", File: "bad.yaml"},
+				{RuleID: "OTEL-010", Severity: augur.SeverityWarn, Message: "OTEL-010: binds to 0.0.0.0", File: "bad.yaml"},
 			},
 		},
 	}
 }
 
-func emptyResults() []*engine.Result {
-	return []*engine.Result{
+func emptyResults() []*augur.Result {
+	return []*augur.Result{
 		{File: "good.yaml"},
 	}
 }
@@ -60,11 +60,11 @@ func TestTextFormatter_AllPassed(t *testing.T) {
 }
 
 func TestTextFormatter_WarningsOnly(t *testing.T) {
-	results := []*engine.Result{
+	results := []*augur.Result{
 		{
 			File: "warn.yaml",
-			Findings: []engine.Finding{
-				{RuleID: "OTEL-010", Severity: engine.SeverityWarn, Message: "OTEL-010: warning", File: "warn.yaml"},
+			Findings: []augur.Finding{
+				{RuleID: "OTEL-010", Severity: augur.SeverityWarn, Message: "OTEL-010: warning", File: "warn.yaml"},
 			},
 		},
 	}
