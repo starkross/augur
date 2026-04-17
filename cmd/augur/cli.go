@@ -9,7 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	augur "github.com/starkross/augur"
+	"github.com/starkross/augur"
 	"github.com/starkross/augur/internal/output"
 )
 

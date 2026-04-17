@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	augur "github.com/starkross/augur"
+	"github.com/starkross/augur"
 )
 
 const goodYAML = `

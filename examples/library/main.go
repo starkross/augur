@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 
-	augur "github.com/starkross/augur"
+	"github.com/starkross/augur"
 )
 
 func main() {
