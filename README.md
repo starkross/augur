@@ -34,6 +34,8 @@
     &nbsp;&nbsp;&bull;&nbsp;&nbsp;
     <a href="#custom-policies">Custom Policies</a>
     &nbsp;&nbsp;&bull;&nbsp;&nbsp;
+    <a href="#library-usage">Library</a>
+    &nbsp;&nbsp;&bull;&nbsp;&nbsp;
     <a href="https://pkg.go.dev/github.com/starkross/augur">Package</a>
   </strong>
 </p>
@@ -180,6 +182,64 @@ augur --policy ./my-policies config.yaml
 ```
 
 Custom policies are **merged** with the built-in rules — your rules run alongside all default checks.
+
+## Library usage
+
+`augur` can also be embedded directly in a Go program. Import the top-level package and construct a `Linter`:
+
+```sh
+go get github.com/starkross/augur
+```
+
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+
+    augur "github.com/starkross/augur"
+)
+
+func main() {
+    linter, err := augur.New()
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    result, err := linter.LintFile(context.Background(), "otel-collector.yaml")
+    if err != nil {
+        log.Fatal(err)
+    }
+    for _, f := range result.Findings {
+        fmt.Printf("%s [%s] %s\n", f.RuleID, f.Severity, f.Message)
+    }
+}
+```
+
+Available entry points:
+
+| Method | Input |
+|--------|-------|
+| `Lint(ctx, label, map[string]any)` | Pre-parsed config map |
+| `LintYAML(ctx, label, []byte)` | Raw YAML bytes |
+| `LintFile(ctx, path)` | Single YAML file |
+| `LintFiles(ctx, paths)` | Multiple files (deep-merged, same semantics as the CLI) |
+
+Options passed to `augur.New`:
+
+| Option | Purpose |
+|--------|---------|
+| `WithPolicyDir(path)` | Add a filesystem directory of extra `.rego` policies |
+| `WithPolicyFS(fsys, root)` | Add a custom `io/fs.FS` policy source (works with `//go:embed`) |
+| `WithoutBuiltinRules()` | Exclude the bundled OTEL-* rule set |
+| `WithSkipRules(ids...)` | Drop findings for the given rule IDs |
+| `WithSeverities(sev...)` | Filter findings by severity (e.g., pass `SeverityDeny` for fail-only) |
+
+A `Linter` compiles its policies once and is safe for concurrent use — construct a single instance and share it across goroutines.
+
+See [examples/library](examples/library) for a runnable example.
 
 ## Security
 

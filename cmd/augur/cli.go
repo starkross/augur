@@ -9,10 +9,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/starkross/augur/internal/config"
-	"github.com/starkross/augur/internal/engine"
+	augur "github.com/starkross/augur"
 	"github.com/starkross/augur/internal/output"
-	"github.com/starkross/augur/rules"
 )
 
 func newRootCmd(version string) *cobra.Command {
@@ -34,7 +32,7 @@ func newRootCmd(version string) *cobra.Command {
 			"behavior (maps merge recursively; slices and scalars are replaced by the later file).",
 		Version: version,
 		Args:    cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(_ *cobra.Command, args []string) error {
 			return run(args, runOpts{
 				outputFmt: outputFmt,
 				strict:    strict,
@@ -60,7 +58,7 @@ func newRootCmd(version string) *cobra.Command {
 }
 
 type runOpts struct {
-	skipRules map[string]struct{}
+	skipRules []string
 	outputFmt string
 	policyDir string
 	strict    bool
@@ -71,16 +69,20 @@ type runOpts struct {
 func run(files []string, opts runOpts) error {
 	ctx := context.Background()
 
-	sources := []engine.PolicySource{
-		{FS: rules.Policies, Dir: rules.PolicyDir},
-	}
+	linterOpts := []augur.Option{}
 	if opts.policyDir != "" {
-		sources = append(sources, engine.PolicySource{FS: os.DirFS(opts.policyDir), Dir: "."})
+		linterOpts = append(linterOpts, augur.WithPolicyDir(opts.policyDir))
+	}
+	if len(opts.skipRules) > 0 {
+		linterOpts = append(linterOpts, augur.WithSkipRules(opts.skipRules...))
+	}
+	if opts.quiet {
+		linterOpts = append(linterOpts, augur.WithSeverities(augur.SeverityDeny))
 	}
 
-	eng, err := engine.New(sources...)
+	linter, err := augur.New(linterOpts...)
 	if err != nil {
-		return fmt.Errorf("initializing policy engine: %w", err)
+		return fmt.Errorf("initializing linter: %w", err)
 	}
 
 	formatter, err := output.GetFormatter(opts.outputFmt, opts.noColor)
@@ -88,30 +90,20 @@ func run(files []string, opts runOpts) error {
 		return err
 	}
 
-	input, err := config.LoadMerged(files)
+	result, err := linter.LintFiles(ctx, files)
 	if err != nil {
 		return err
 	}
 
-	label := files[0]
-	if len(files) > 1 {
-		label = "merged: " + strings.Join(files, ", ")
-	}
-
-	result, evalErr := eng.Eval(ctx, label, input)
-	if evalErr != nil {
-		return fmt.Errorf("evaluating %q: %w", label, evalErr)
-	}
-
-	filtered := filterFindings(result, opts)
 	hasFailures := false
-	for _, finding := range filtered.Findings {
-		if finding.Severity == engine.SeverityDeny || (finding.Severity == engine.SeverityWarn && opts.strict) {
+	for _, f := range result.Findings {
+		if f.Severity == augur.SeverityDeny || (f.Severity == augur.SeverityWarn && opts.strict) {
 			hasFailures = true
+			break
 		}
 	}
 
-	if err := formatter.Format(os.Stdout, []*engine.Result{filtered}); err != nil {
+	if err := formatter.Format(os.Stdout, []*augur.Result{result}); err != nil {
 		return fmt.Errorf("formatting output: %w", err)
 	}
 
@@ -121,30 +113,17 @@ func run(files []string, opts runOpts) error {
 	return nil
 }
 
-func filterFindings(r *engine.Result, opts runOpts) *engine.Result {
-	if len(opts.skipRules) == 0 && !opts.quiet {
-		return r
-	}
-	filtered := &engine.Result{File: r.File, Findings: make([]engine.Finding, 0, len(r.Findings))}
-	for _, finding := range r.Findings {
-		if _, skip := opts.skipRules[finding.RuleID]; skip {
-			continue
-		}
-		if opts.quiet && finding.Severity == engine.SeverityWarn {
-			continue
-		}
-		filtered.Findings = append(filtered.Findings, finding)
-	}
-	return filtered
-}
-
-func parseSkip(s string) map[string]struct{} {
-	m := make(map[string]struct{})
+func parseSkip(s string) []string {
 	if s == "" {
-		return m
+		return nil
 	}
-	for _, id := range strings.Split(s, ",") {
-		m[strings.TrimSpace(id)] = struct{}{}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, id := range parts {
+		id = strings.TrimSpace(id)
+		if id != "" {
+			out = append(out, id)
+		}
 	}
-	return m
+	return out
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -136,10 +137,12 @@ func appendFindings(result *Result, val any, severity Severity, file string) {
 	}
 }
 
+var ruleIDRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*-[A-Za-z0-9_]+$`)
+
 func extractRuleID(msg string) string {
 	if idx := strings.Index(msg, ":"); idx > 0 {
 		candidate := strings.TrimSpace(msg[:idx])
-		if strings.HasPrefix(candidate, "OTEL-") {
+		if ruleIDRe.MatchString(candidate) {
 			return candidate
 		}
 	}
