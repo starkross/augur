@@ -4,110 +4,128 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"testing/fstest"
 
 	"github.com/starkross/augur"
 )
 
-const goodYAML = `
-receivers:
-  otlp:
-    protocols:
-      grpc:
-        endpoint: localhost:4317
-processors:
-  memory_limiter:
-    check_interval: 5s
-    limit_mib: 4000
-  batch:
-    send_batch_max_size: 16384
-exporters:
-  otlp/backend:
-    endpoint: "${env:OTEL_EXPORTER_ENDPOINT}"
-    tls:
-      insecure: false
-    retry_on_failure:
-      enabled: true
-    sending_queue:
-      enabled: true
-      storage: file_storage
-extensions:
-  health_check: {}
-  file_storage:
-    directory: /tmp/otel
-service:
-  extensions: [health_check]
-  pipelines:
-    traces:
-      receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [otlp/backend]
-`
-
-const badYAML = `
-receivers:
-  otlp:
-    protocols:
-      grpc:
-        endpoint: "0.0.0.0:4317"
-processors: {}
-exporters:
-  debug: {}
-service:
-  pipelines:
-    traces:
-      receivers: [otlp]
-      exporters: [debug]
-`
-
-func TestNew_Default(t *testing.T) {
-	l, err := augur.New()
+func readTestdata(t *testing.T, name string) []byte {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", name))
 	if err != nil {
-		t.Fatalf("New: %v", err)
+		t.Fatalf("read %s: %v", name, err)
 	}
-	if l == nil {
-		t.Fatal("expected non-nil linter")
-	}
+	return data
 }
 
-func TestLintYAML_GoodConfig(t *testing.T) {
-	l, err := augur.New()
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
+const customPolicy = `package main
 
-	result, err := l.LintYAML(context.Background(), "good.yaml", []byte(goodYAML))
-	if err != nil {
-		t.Fatalf("LintYAML: %v", err)
-	}
+import future.keywords.contains
+import future.keywords.if
 
-	for _, f := range result.Findings {
-		if f.Severity == augur.SeverityDeny {
-			t.Errorf("unexpected deny finding %s: %s", f.RuleID, f.Message)
-		}
-	}
+deny contains msg if {
+	not input.extensions.pprof
+	msg := "CUSTOM-001: pprof extension required by platform."
 }
+`
 
-func TestLintYAML_BadConfigHasDenials(t *testing.T) {
-	l, err := augur.New()
-	if err != nil {
-		t.Fatalf("New: %v", err)
+const alwaysFiringPolicy = `package main
+
+import future.keywords.contains
+import future.keywords.if
+
+deny contains msg if {
+	true
+	msg := "ONLY-001: fires always."
+}
+`
+
+func TestLintYAML(t *testing.T) {
+	customFS := fstest.MapFS{"main/custom.rego": &fstest.MapFile{Data: []byte(customPolicy)}}
+
+	tests := []struct {
+		name   string
+		opts   []augur.Option
+		file   string
+		assert func(t *testing.T, r *augur.Result)
+	}{
+		{
+			name: "good config has no deny findings",
+			file: "good.yaml",
+			assert: func(t *testing.T, r *augur.Result) {
+				for _, f := range r.Findings {
+					if f.Severity == augur.SeverityDeny {
+						t.Errorf("unexpected deny %s: %s", f.RuleID, f.Message)
+					}
+				}
+			},
+		},
+		{
+			name: "bad config yields deny findings",
+			file: "bad.yaml",
+			assert: func(t *testing.T, r *augur.Result) {
+				if !slices.ContainsFunc(r.Findings, func(f augur.Finding) bool {
+					return f.Severity == augur.SeverityDeny
+				}) {
+					t.Error("expected at least one deny finding")
+				}
+			},
+		},
+		{
+			name: "WithSkipRules drops matching rule IDs",
+			opts: []augur.Option{augur.WithSkipRules("OTEL-001", "OTEL-003")},
+			file: "bad.yaml",
+			assert: func(t *testing.T, r *augur.Result) {
+				for _, f := range r.Findings {
+					if f.RuleID == "OTEL-001" || f.RuleID == "OTEL-003" {
+						t.Errorf("expected %s to be skipped", f.RuleID)
+					}
+				}
+			},
+		},
+		{
+			name: "WithSeverities deny-only filters warnings",
+			opts: []augur.Option{augur.WithSeverities(augur.SeverityDeny)},
+			file: "bad.yaml",
+			assert: func(t *testing.T, r *augur.Result) {
+				if len(r.Findings) == 0 {
+					t.Fatal("expected at least one deny finding")
+				}
+				for _, f := range r.Findings {
+					if f.Severity != augur.SeverityDeny {
+						t.Errorf("unexpected severity %s for %s", f.Severity, f.RuleID)
+					}
+				}
+			},
+		},
+		{
+			name: "WithPolicyFS adds custom rule",
+			opts: []augur.Option{augur.WithPolicyFS(customFS, ".")},
+			file: "good.yaml",
+			assert: func(t *testing.T, r *augur.Result) {
+				if !slices.ContainsFunc(r.Findings, func(f augur.Finding) bool {
+					return f.RuleID == "CUSTOM-001"
+				}) {
+					t.Error("expected custom rule to fire")
+				}
+			},
+		},
 	}
 
-	result, err := l.LintYAML(context.Background(), "bad.yaml", []byte(badYAML))
-	if err != nil {
-		t.Fatalf("LintYAML: %v", err)
-	}
-
-	var denies int
-	for _, f := range result.Findings {
-		if f.Severity == augur.SeverityDeny {
-			denies++
-		}
-	}
-	if denies == 0 {
-		t.Error("expected at least one deny finding for bad config")
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			l, err := augur.New(tc.opts...)
+			if err != nil {
+				t.Fatalf("New: %v", err)
+			}
+			r, err := l.LintYAML(context.Background(), tc.file, readTestdata(t, tc.file))
+			if err != nil {
+				t.Fatalf("LintYAML: %v", err)
+			}
+			tc.assert(t, r)
+		})
 	}
 }
 
@@ -131,14 +149,14 @@ func TestLint_MapInput(t *testing.T) {
 		},
 	}
 
-	result, err := l.Lint(context.Background(), "test.yaml", input)
+	r, err := l.Lint(context.Background(), "test.yaml", input)
 	if err != nil {
 		t.Fatalf("Lint: %v", err)
 	}
-	if result.File != "test.yaml" {
-		t.Errorf("expected file=test.yaml, got %q", result.File)
+	if r.File != "test.yaml" {
+		t.Errorf("expected file=test.yaml, got %q", r.File)
 	}
-	if len(result.Findings) == 0 {
+	if len(r.Findings) == 0 {
 		t.Error("expected findings for minimal config")
 	}
 }
@@ -146,7 +164,7 @@ func TestLint_MapInput(t *testing.T) {
 func TestLintFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
-	if err := os.WriteFile(path, []byte(badYAML), 0o600); err != nil {
+	if err := os.WriteFile(path, readTestdata(t, "bad.yaml"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -155,12 +173,12 @@ func TestLintFile(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	result, err := l.LintFile(context.Background(), path)
+	r, err := l.LintFile(context.Background(), path)
 	if err != nil {
 		t.Fatalf("LintFile: %v", err)
 	}
-	if result.File != path {
-		t.Errorf("expected file=%q, got %q", path, result.File)
+	if r.File != path {
+		t.Errorf("expected file=%q, got %q", path, r.File)
 	}
 }
 
@@ -168,10 +186,10 @@ func TestLintFiles_DeepMerge(t *testing.T) {
 	dir := t.TempDir()
 	a := filepath.Join(dir, "a.yaml")
 	b := filepath.Join(dir, "b.yaml")
-	if err := os.WriteFile(a, []byte(goodYAML), 0o600); err != nil {
+	if err := os.WriteFile(a, readTestdata(t, "good.yaml"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(b, []byte("service:\n  telemetry:\n    logs:\n      level: debug\n"), 0o600); err != nil {
+	if err := os.WriteFile(b, readTestdata(t, "debug_level.yaml"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -180,129 +198,56 @@ func TestLintFiles_DeepMerge(t *testing.T) {
 		t.Fatalf("New: %v", err)
 	}
 
-	result, err := l.LintFiles(context.Background(), []string{a, b})
+	r, err := l.LintFiles(context.Background(), []string{a, b})
 	if err != nil {
 		t.Fatalf("LintFiles: %v", err)
 	}
 
-	var sawOTEL016 bool
-	for _, f := range result.Findings {
-		if f.RuleID == "OTEL-016" {
-			sawOTEL016 = true
-		}
-	}
-	if !sawOTEL016 {
+	if !slices.ContainsFunc(r.Findings, func(f augur.Finding) bool {
+		return f.RuleID == "OTEL-016"
+	}) {
 		t.Error("expected OTEL-016 (debug log level) after merge")
 	}
 }
 
-func TestLintFiles_EmptyPaths(t *testing.T) {
+func TestNew_Errors(t *testing.T) {
+	tests := []struct {
+		name string
+		opts []augur.Option
+	}{
+		{"WithoutBuiltinRules requires extra source", []augur.Option{augur.WithoutBuiltinRules()}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := augur.New(tc.opts...); err == nil {
+				t.Error("expected error")
+			}
+		})
+	}
+}
+
+func TestLint_Errors(t *testing.T) {
 	l, err := augur.New()
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	if _, err := l.LintFiles(context.Background(), nil); err == nil {
-		t.Error("expected error for empty paths")
-	}
-}
+	ctx := context.Background()
 
-func TestWithSkipRules(t *testing.T) {
-	l, err := augur.New(augur.WithSkipRules("OTEL-001", "OTEL-003"))
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	result, err := l.LintYAML(context.Background(), "bad.yaml", []byte(badYAML))
-	if err != nil {
-		t.Fatalf("LintYAML: %v", err)
-	}
-
-	for _, f := range result.Findings {
-		if f.RuleID == "OTEL-001" || f.RuleID == "OTEL-003" {
-			t.Errorf("expected %s to be skipped", f.RuleID)
+	t.Run("LintFiles empty paths", func(t *testing.T) {
+		if _, err := l.LintFiles(ctx, nil); err == nil {
+			t.Error("expected error for empty paths")
 		}
-	}
-}
+	})
 
-func TestWithSeverities_DenyOnly(t *testing.T) {
-	l, err := augur.New(augur.WithSeverities(augur.SeverityDeny))
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	result, err := l.LintYAML(context.Background(), "bad.yaml", []byte(badYAML))
-	if err != nil {
-		t.Fatalf("LintYAML: %v", err)
-	}
-
-	if len(result.Findings) == 0 {
-		t.Fatal("expected at least one deny finding")
-	}
-	for _, f := range result.Findings {
-		if f.Severity != augur.SeverityDeny {
-			t.Errorf("expected only deny findings, got %s: %s", f.Severity, f.RuleID)
+	t.Run("LintYAML invalid YAML", func(t *testing.T) {
+		if _, err := l.LintYAML(ctx, "bad", readTestdata(t, "invalid.yaml")); err == nil {
+			t.Error("expected error for invalid YAML")
 		}
-	}
-}
-
-func TestWithPolicyFS_AddsCustomRule(t *testing.T) {
-	custom := fstest.MapFS{
-		"main/custom.rego": &fstest.MapFile{
-			Data: []byte(`package main
-
-import future.keywords.contains
-import future.keywords.if
-
-deny contains msg if {
-	not input.extensions.pprof
-	msg := "CUSTOM-001: pprof extension required by platform."
-}
-`),
-		},
-	}
-
-	l, err := augur.New(augur.WithPolicyFS(custom, "."))
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-
-	result, err := l.LintYAML(context.Background(), "good.yaml", []byte(goodYAML))
-	if err != nil {
-		t.Fatalf("LintYAML: %v", err)
-	}
-
-	var sawCustom bool
-	for _, f := range result.Findings {
-		if f.RuleID == "CUSTOM-001" {
-			sawCustom = true
-		}
-	}
-	if !sawCustom {
-		t.Error("expected custom rule to fire")
-	}
-}
-
-func TestWithoutBuiltinRules_RequiresExtraSource(t *testing.T) {
-	if _, err := augur.New(augur.WithoutBuiltinRules()); err == nil {
-		t.Error("expected error when disabling built-ins without extra source")
-	}
+	})
 }
 
 func TestWithoutBuiltinRules_OnlyCustom(t *testing.T) {
-	custom := fstest.MapFS{
-		"main/only.rego": &fstest.MapFile{
-			Data: []byte(`package main
-
-import future.keywords.contains
-import future.keywords.if
-
-deny contains msg if {
-	true
-	msg := "ONLY-001: fires always."
-}
-`),
-		},
-	}
+	custom := fstest.MapFS{"main/only.rego": &fstest.MapFile{Data: []byte(alwaysFiringPolicy)}}
 
 	l, err := augur.New(
 		augur.WithoutBuiltinRules(),
@@ -312,27 +257,17 @@ deny contains msg if {
 		t.Fatalf("New: %v", err)
 	}
 
-	result, err := l.Lint(context.Background(), "x.yaml", map[string]any{"x": 1})
+	r, err := l.Lint(context.Background(), "x.yaml", map[string]any{"x": 1})
 	if err != nil {
 		t.Fatalf("Lint: %v", err)
 	}
 
-	if len(result.Findings) == 0 {
+	if len(r.Findings) == 0 {
 		t.Fatal("expected custom finding")
 	}
-	for _, f := range result.Findings {
+	for _, f := range r.Findings {
 		if f.RuleID != "ONLY-001" {
 			t.Errorf("expected only ONLY-001, got %s", f.RuleID)
 		}
-	}
-}
-
-func TestLintYAML_InvalidYAML(t *testing.T) {
-	l, err := augur.New()
-	if err != nil {
-		t.Fatalf("New: %v", err)
-	}
-	if _, err := l.LintYAML(context.Background(), "bad", []byte(":\n  :\n    [invalid")); err == nil {
-		t.Error("expected error for invalid YAML")
 	}
 }

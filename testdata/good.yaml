@@ -1,0 +1,32 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:4317
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 4000
+  batch:
+    send_batch_max_size: 16384
+exporters:
+  otlp/backend:
+    endpoint: "${env:OTEL_EXPORTER_ENDPOINT}"
+    tls:
+      insecure: false
+    retry_on_failure:
+      enabled: true
+    sending_queue:
+      enabled: true
+      storage: file_storage
+extensions:
+  health_check: {}
+  file_storage:
+    directory: /tmp/otel
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/backend]
