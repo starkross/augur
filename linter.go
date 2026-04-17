@@ -49,7 +49,7 @@ type Linter struct {
 func New(opts ...Option) (*Linter, error) {
 	var lo linterOptions
 	for _, opt := range opts {
-		opt.apply(&lo)
+		opt(&lo)
 	}
 
 	sources := make([]engine.PolicySource, 0, 1+len(lo.extraSources))
