@@ -2,6 +2,7 @@ package augur_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -212,15 +213,24 @@ func TestLintFiles_DeepMerge(t *testing.T) {
 
 func TestNew_Errors(t *testing.T) {
 	tests := []struct {
-		name string
-		opts []augur.Option
+		name   string
+		opts   []augur.Option
+		wantIs error
 	}{
-		{"WithoutBuiltinRules requires extra source", []augur.Option{augur.WithoutBuiltinRules()}},
+		{
+			name:   "WithoutBuiltinRules requires extra source",
+			opts:   []augur.Option{augur.WithoutBuiltinRules()},
+			wantIs: augur.ErrNoPolicies,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := augur.New(tc.opts...); err == nil {
-				t.Error("expected error")
+			_, err := augur.New(tc.opts...)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if tc.wantIs != nil && !errors.Is(err, tc.wantIs) {
+				t.Errorf("errors.Is(%v, %v) = false", err, tc.wantIs)
 			}
 		})
 	}

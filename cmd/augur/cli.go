@@ -69,7 +69,7 @@ type runOpts struct {
 func run(files []string, opts runOpts) error {
 	ctx := context.Background()
 
-	linterOpts := []augur.Option{}
+	var linterOpts []augur.Option
 	if opts.policyDir != "" {
 		linterOpts = append(linterOpts, augur.WithPolicyDir(opts.policyDir))
 	}

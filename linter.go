@@ -35,6 +35,10 @@ type Result struct {
 	Findings []Finding `json:"findings"`
 }
 
+// ErrNoPolicies is returned by [New] when the built-in rules are disabled
+// via [WithoutBuiltinRules] and no custom policy source is supplied.
+var ErrNoPolicies = errors.New("augur: no policies configured")
+
 // Linter evaluates OpenTelemetry Collector configs against a compiled policy
 // set. A Linter is safe for concurrent use.
 type Linter struct {
@@ -61,12 +65,12 @@ func New(opts ...Option) (*Linter, error) {
 	}
 	sources = append(sources, lo.extraSources...)
 	if len(sources) == 0 {
-		return nil, errors.New("augur: no policies configured; WithoutBuiltinRules requires at least one WithPolicyDir or WithPolicyFS")
+		return nil, fmt.Errorf("%w: WithoutBuiltinRules requires at least one WithPolicyDir or WithPolicyFS", ErrNoPolicies)
 	}
 
 	eng, err := engine.New(sources...)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("augur: compiling policies: %w", err)
 	}
 
 	return &Linter{
@@ -76,8 +80,9 @@ func New(opts ...Option) (*Linter, error) {
 	}, nil
 }
 
-// Lint evaluates a pre-parsed config map. label is used only for display
-// (e.g., in Finding.File).
+// Lint evaluates a pre-parsed config map. label identifies the source in
+// the returned [Result.File] and each [Finding.File]; pass a filename, URL,
+// or any other human-readable identifier.
 func (l *Linter) Lint(ctx context.Context, label string, input map[string]any) (*Result, error) {
 	r, err := l.engine.Eval(ctx, label, input)
 	if err != nil {
@@ -104,9 +109,8 @@ func (l *Linter) LintFile(ctx context.Context, path string) (*Result, error) {
 	return l.Lint(ctx, path, m)
 }
 
-// LintFiles deep-merges several YAML files and evaluates the result. Merge
-// semantics match the OpenTelemetry Collector's --config behavior: maps
-// merge recursively; scalars and slices are replaced by the later file.
+// LintFiles deep-merges the given YAML files and evaluates the result,
+// matching the OpenTelemetry Collector's --config behavior.
 func (l *Linter) LintFiles(ctx context.Context, paths []string) (*Result, error) {
 	if len(paths) == 0 {
 		return nil, errors.New("augur: no config files provided")

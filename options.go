@@ -54,7 +54,8 @@ func WithoutBuiltinRules() Option {
 }
 
 // WithSkipRules drops findings whose rule ID matches any of the given IDs.
-// Empty strings are ignored.
+// Empty strings are ignored. Multiple calls accumulate: the final skip set is
+// the union of all IDs passed across every WithSkipRules call.
 func WithSkipRules(ids ...string) Option {
 	return func(o *linterOptions) {
 		if o.skipRules == nil {
@@ -68,9 +69,9 @@ func WithSkipRules(ids ...string) Option {
 	}
 }
 
-// WithSeverities restricts findings to the given severities. If not set, all
-// severities are returned. Passing [SeverityDeny] alone is equivalent to the
-// CLI's --quiet flag.
+// WithSeverities restricts findings to the given severities. If not called,
+// all severities are returned. Multiple calls accumulate: the final allow-set
+// is the union of severities passed across every WithSeverities call.
 func WithSeverities(severities ...Severity) Option {
 	return func(o *linterOptions) {
 		if o.severities == nil {
