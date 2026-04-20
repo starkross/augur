@@ -11,32 +11,43 @@ import (
 
 const maxConfigSize = 10 << 20 // 10 MB
 
+// Stdin is the reader used when a config path is "-".
+// It defaults to os.Stdin and can be overridden in tests.
+var Stdin io.Reader = os.Stdin
+
 // LoadYAML reads and parses a YAML file into a generic map.
-func LoadYAML(path string) (out map[string]any, err error) {
+func LoadYAML(path string) (map[string]any, error) {
+	if path == "-" {
+		return LoadReader(Stdin, "<stdin>")
+	}
+
 	f, err := os.Open(filepath.Clean(path))
 	if err != nil {
 		return nil, fmt.Errorf("opening %q: %w", path, err)
 	}
-	defer func() {
-		if cerr := f.Close(); cerr != nil && err == nil {
-			err = fmt.Errorf("closing %q: %w", path, cerr)
-		}
-	}()
+	defer f.Close()
 
-	data, err := io.ReadAll(io.LimitReader(f, maxConfigSize+1))
+	return LoadReader(f, fmt.Sprintf("%q", path))
+}
+
+// LoadReader parses YAML from r into a generic map.
+// The label is used in error messages to identify the source (e.g. a file path or "<stdin>").
+func LoadReader(r io.Reader, label string) (map[string]any, error) {
+	data, err := io.ReadAll(io.LimitReader(r, int64(maxConfigSize)+1))
 	if err != nil {
-		return nil, fmt.Errorf("reading %q: %w", path, err)
+		return nil, fmt.Errorf("reading %s: %w", label, err)
 	}
 	if len(data) > maxConfigSize {
-		return nil, fmt.Errorf("%q: file exceeds %d MB limit", path, maxConfigSize>>20)
+		return nil, fmt.Errorf("%s: input exceeds %d MB limit", label, maxConfigSize>>20)
 	}
 
+	var out map[string]any
 	if err := yaml.Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("parsing YAML in %q: %w", path, err)
+		return nil, fmt.Errorf("parsing YAML in %s: %w", label, err)
 	}
 
 	if out == nil {
-		return nil, fmt.Errorf("empty or invalid YAML in %q", path)
+		return nil, fmt.Errorf("empty or invalid YAML in %s", label)
 	}
 
 	return out, nil
@@ -48,6 +59,16 @@ func LoadYAML(path string) (out map[string]any, err error) {
 func LoadMerged(paths []string) (map[string]any, error) {
 	if len(paths) == 0 {
 		return nil, fmt.Errorf("no config files provided")
+	}
+
+	stdinCount := 0
+	for _, p := range paths {
+		if p == "-" {
+			stdinCount++
+		}
+	}
+	if stdinCount > 1 {
+		return nil, fmt.Errorf("stdin (-) can only be specified once")
 	}
 
 	merged, err := LoadYAML(paths[0])
