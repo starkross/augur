@@ -45,16 +45,14 @@ warn contains msg if {
 # OTEL-067: K8s environment without k8sattributes
 warn contains msg if {
 	not _has_processor_type("k8sattributes")
-	some name in object.keys(input.receivers)
-	split(name, "/")[0] in {"kubeletstats", "k8s_cluster", "k8s_events", "k8sobjects"}
+	_has_k8s_receiver
 	msg := "OTEL-067: K8s environment detected but k8sattributes processor is not configured."
 }
 
 # OTEL-068: K8s environment without resourcedetection
 warn contains msg if {
 	not _has_processor_type("resourcedetection")
-	some name in object.keys(input.receivers)
-	split(name, "/")[0] in {"kubeletstats", "k8s_cluster", "k8s_events", "k8sobjects"}
+	_has_k8s_receiver
 	msg := "OTEL-068: K8s environment detected but resourcedetection processor is not configured."
 }
 
@@ -65,4 +63,9 @@ warn contains msg if {
 _has_processor_type(ptype) if {
 	some name in object.keys(input.processors)
 	split(name, "/")[0] == ptype
+}
+
+_has_k8s_receiver if {
+	some name in object.keys(input.receivers)
+	split(name, "/")[0] in {"kubeletstats", "k8s_cluster", "k8s_events", "k8sobjects"}
 }
