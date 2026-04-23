@@ -7,7 +7,7 @@ sidebar_position: 4
 # Usage
 
 ```text
-augur [flags] <config.yaml> [config.yaml...]
+augur [flags] <config.yaml | -> [config.yaml | -]...
 ```
 
 ## Flags
@@ -57,4 +57,16 @@ Merge in custom policies alongside built-in rules:
 
 ```sh
 augur --policy ./my-policies config.yaml
+```
+
+Read config from stdin:
+
+```sh
+cat config.yaml | augur -
+```
+
+Mix stdin with file arguments (stdin is read once and merged in position):
+
+```sh
+augur base.yaml - overrides.yaml < patch.yaml
 ```

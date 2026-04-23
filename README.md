@@ -105,7 +105,7 @@ See [docs/RULES.md](docs/RULES.md) for the full list of built-in rules.
 ## Usage
 
 ```
-augur [flags] <config.yaml> [config.yaml...]
+augur [flags] <config.yaml | -> [config.yaml | -]...
 ```
 
 | Flag | Description | Default |
@@ -119,7 +119,7 @@ augur [flags] <config.yaml> [config.yaml...]
 
 ### Multiple config files
 
-When you pass more than one file, augur deep-merges them into a single effective config before linting — the same way the OpenTelemetry Collector combines multiple `--config` flags:
+When you pass more than one file, augur deep-merges them into a single effective config before linting — the same way the OpenTelemetry Collector combines multiple `--config` flags. Use `-` in place of a filename to read from stdin (may only appear once):
 
 ```sh
 augur common.yaml client.yaml
@@ -152,6 +152,12 @@ augur --skip OTEL-015,OTEL-016 config.yaml
 
 # Use custom policies
 augur --policy ./my-policies config.yaml
+
+# Read from stdin
+cat config.yaml | augur -
+
+# Mix stdin with file arguments
+augur base.yaml - overrides.yaml < patch.yaml
 ```
 
 ## Custom policies
