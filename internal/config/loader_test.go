@@ -3,6 +3,7 @@ package config_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/starkross/augur/internal/config"
@@ -180,5 +181,95 @@ func TestLoadMerged_MissingFile(t *testing.T) {
 	a := writeFile(t, dir, "a.yaml", "x: 1\n")
 	if _, err := config.LoadMerged([]string{a, "/nonexistent.yaml"}); err == nil {
 		t.Error("expected error when a later file is missing")
+	}
+}
+
+func TestLoadReader_Valid(t *testing.T) {
+	r := strings.NewReader("key: value\nnested:\n  a: 1\n")
+	m, err := config.LoadReader(r, "test-input")
+	if err != nil {
+		t.Fatalf("LoadReader() error: %v", err)
+	}
+	if m["key"] != "value" {
+		t.Errorf("expected key=value, got %v", m["key"])
+	}
+}
+
+func TestLoadReader_Empty(t *testing.T) {
+	r := strings.NewReader("")
+	_, err := config.LoadReader(r, "empty-input")
+	if err == nil {
+		t.Error("expected error for empty input")
+	}
+}
+
+func TestLoadReader_InvalidYAML(t *testing.T) {
+	r := strings.NewReader(":\n  :\n    [invalid")
+	_, err := config.LoadReader(r, "bad-input")
+	if err == nil {
+		t.Error("expected error for invalid YAML")
+	}
+}
+
+func TestLoadYAML_Stdin(t *testing.T) {
+	orig := config.Stdin
+	t.Cleanup(func() { config.Stdin = orig })
+
+	config.Stdin = strings.NewReader("key: from_stdin\n")
+	m, err := config.LoadYAML("-")
+	if err != nil {
+		t.Fatalf("LoadYAML('-') error: %v", err)
+	}
+	if m["key"] != "from_stdin" {
+		t.Errorf("expected key=from_stdin, got %v", m["key"])
+	}
+}
+
+func TestLoadMerged_StdinMerge(t *testing.T) {
+	orig := config.Stdin
+	t.Cleanup(func() { config.Stdin = orig })
+
+	dir := t.TempDir()
+	a := writeFile(t, dir, "a.yaml", "receivers:\n  otlp:\n    protocols:\n      grpc: {}\n")
+	config.Stdin = strings.NewReader("receivers:\n  kafka:\n    brokers: [k1]\n")
+
+	m, err := config.LoadMerged([]string{a, "-"})
+	if err != nil {
+		t.Fatalf("LoadMerged with stdin: %v", err)
+	}
+
+	recv, ok := m["receivers"].(map[string]any)
+	if !ok {
+		t.Fatalf("receivers not a map: %T", m["receivers"])
+	}
+	if _, ok := recv["otlp"]; !ok {
+		t.Error("expected otlp preserved from a.yaml")
+	}
+	if _, ok := recv["kafka"]; !ok {
+		t.Error("expected kafka added from stdin")
+	}
+}
+
+func TestLoadMerged_StdinOnly(t *testing.T) {
+	orig := config.Stdin
+	t.Cleanup(func() { config.Stdin = orig })
+
+	config.Stdin = strings.NewReader("key: value\n")
+	m, err := config.LoadMerged([]string{"-"})
+	if err != nil {
+		t.Fatalf("LoadMerged with only stdin: %v", err)
+	}
+	if m["key"] != "value" {
+		t.Errorf("expected key=value, got %v", m["key"])
+	}
+}
+
+func TestLoadMerged_MultipleStdinRejected(t *testing.T) {
+	_, err := config.LoadMerged([]string{"-", "-"})
+	if err == nil {
+		t.Fatal("expected error for multiple stdin args")
+	}
+	if !strings.Contains(err.Error(), "stdin") {
+		t.Errorf("expected error mentioning stdin, got: %v", err)
 	}
 }

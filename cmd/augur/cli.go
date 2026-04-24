@@ -26,12 +26,13 @@ func newRootCmd(version string) *cobra.Command {
 	)
 
 	root := &cobra.Command{
-		Use:   "augur [flags] <config.yaml> [config.yaml...]",
+		Use:   "augur [flags] <config.yaml | -> [config.yaml | -]...",
 		Short: "Lint OpenTelemetry Collector configs for best practices",
 		Long: "Lint OpenTelemetry Collector configs for best practices.\n\n" +
 			"When multiple files are provided, they are deep-merged into a single " +
 			"effective config before linting, matching the collector's own --config " +
-			"behavior (maps merge recursively; slices and scalars are replaced by the later file).",
+			"behavior (maps merge recursively; slices and scalars are replaced by the later file).\n\n" +
+			"Use \"-\" to read a config from stdin (e.g. cat config.yaml | augur -).",
 		Version: version,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
