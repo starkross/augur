@@ -33,7 +33,7 @@ kos:
       - "{{ .Version }}"
       - '{{ if not .Prerelease }}latest{{ end }}'
     bare: true
-    sbom: cyclonedx
+    sbom: spdx
     ldflags: [-s, -w, "-X main.version={{.Version}}"]
     labels:
       org.opencontainers.image.title: "{{ .ProjectName }}"
