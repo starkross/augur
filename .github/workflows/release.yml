@@ -32,6 +32,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: ko-build/setup-ko@d006021bd0c28d1ce33a07e7943d48b079944c8d # v0.9
       - uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        with:
+          cosign-release: 'v3.0.5'
       - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
       - uses: goreleaser/goreleaser-action@e24998b8b67b290c2fa8b7c14fcfa7de2c5c9b8c # v7
         with:
@@ -160,6 +162,8 @@ jobs:
       - name: Install cosign
         if: startsWith(matrix.method, 'cosign-')
         uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
+        with:
+          cosign-release: 'v3.0.5'
 
       - name: Verify checksums.txt cosign signature
         if: matrix.method == 'cosign-checksums'
@@ -169,12 +173,11 @@ jobs:
         run: |
           set -euo pipefail
           base="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}"
-          curl -fsSL "${base}/checksums.txt"     -o checksums.txt
-          curl -fsSL "${base}/checksums.txt.sig" -o checksums.txt.sig
-          curl -fsSL "${base}/checksums.txt.pem" -o checksums.txt.pem
+          curl -fsSL "${base}/checksums.txt"        -o checksums.txt
+          curl -fsSL "${base}/checksums.txt.bundle" -o checksums.txt.bundle
           cosign verify-blob \
-            --certificate checksums.txt.pem \
-            --signature   checksums.txt.sig \
+            --bundle checksums.txt.bundle \
+            --new-bundle-format \
             --certificate-identity-regexp "${IDENTITY_REGEX}" \
             --certificate-oidc-issuer     "${OIDC_ISSUER}" \
             checksums.txt

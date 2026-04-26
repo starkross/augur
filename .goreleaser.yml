@@ -41,18 +41,16 @@ kos:
       org.opencontainers.image.source: "{{ .GitURL }}"
       org.opencontainers.image.licenses: Apache-2.0
 
-brews:
+homebrew_casks:
   - repository:
       owner: starkross
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    directory: Formula
+    directory: Casks
     homepage: https://github.com/starkross/augur
     description: Policy-driven linter for OpenTelemetry configurations
     license: Apache-2.0
     skip_upload: auto
-    test: |
-      system "#{bin}/augur", "--version"
 
 release:
   prerelease: auto
@@ -71,13 +69,11 @@ sboms:
 signs:
   - id: checksums
     cmd: cosign
-    certificate: "${artifact}.pem"
-    signature: "${artifact}.sig"
+    signature: "${artifact}.bundle"
     args:
       - sign-blob
       - "--yes"
-      - "--output-certificate=${certificate}"
-      - "--output-signature=${signature}"
+      - "--bundle=${signature}"
       - "${artifact}"
     artifacts: checksum
     output: true
