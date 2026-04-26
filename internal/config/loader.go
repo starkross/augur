@@ -15,6 +15,23 @@ const maxConfigSize = 10 << 20 // 10 MB
 // It defaults to os.Stdin and can be overridden in tests.
 var Stdin io.Reader = os.Stdin
 
+// ParseYAML parses YAML bytes into a generic map. It enforces the same size
+// limit as LoadYAML and rejects empty documents.
+func ParseYAML(data []byte) (map[string]any, error) {
+	if len(data) > maxConfigSize {
+		return nil, fmt.Errorf("YAML input exceeds %d MB limit", maxConfigSize>>20)
+	}
+
+	var out map[string]any
+	if err := yaml.Unmarshal(data, &out); err != nil {
+		return nil, fmt.Errorf("parsing YAML: %w", err)
+	}
+	if out == nil {
+		return nil, fmt.Errorf("empty or invalid YAML")
+	}
+	return out, nil
+}
+
 // LoadYAML reads and parses a YAML file into a generic map.
 func LoadYAML(path string) (map[string]any, error) {
 	if path == "-" {
@@ -37,20 +54,12 @@ func LoadReader(r io.Reader, label string) (map[string]any, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", label, err)
 	}
-	if len(data) > maxConfigSize {
-		return nil, fmt.Errorf("%s: input exceeds %d MB limit", label, maxConfigSize>>20)
-	}
 
-	var out map[string]any
-	if err := yaml.Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("parsing YAML in %s: %w", label, err)
+	parsed, err := ParseYAML(data)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", label, err)
 	}
-
-	if out == nil {
-		return nil, fmt.Errorf("empty or invalid YAML in %s", label)
-	}
-
-	return out, nil
+	return parsed, nil
 }
 
 // LoadMerged loads each path and deep-merges them in order, matching the
