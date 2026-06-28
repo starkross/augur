@@ -10,3 +10,33 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Warsaw"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "website"
+    commit-message:
+      prefix: "chore(website)"
+    groups:
+      docusaurus:
+        applies-to: version-updates
+        patterns:
+          - "@docusaurus/*"
+      react:
+        applies-to: version-updates
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
