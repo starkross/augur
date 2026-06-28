@@ -211,6 +211,119 @@ func TestLintFiles_DeepMerge(t *testing.T) {
 	}
 }
 
+func TestLint_EnvSubstitution(t *testing.T) {
+	yaml := []byte(`receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:4317
+processors:
+  memory_limiter: {check_interval: 5s, limit_mib: 4000}
+  batch: {}
+exporters:
+  otlp/backend:
+    endpoint: "${env:OTEL_URL}"
+    retry_on_failure: {enabled: true}
+    sending_queue: {enabled: true, queue_size: 1000, num_consumers: 4}
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/backend]
+`)
+
+	// Without env: OTEL-018 stays silent (env var unresolved, the rule now
+	// knows it can't judge) — no false positive.
+	bare, err := augur.New()
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	r1, err := bare.LintYAML(context.Background(), "t.yaml", yaml)
+	if err != nil {
+		t.Fatalf("LintYAML: %v", err)
+	}
+	if slices.ContainsFunc(r1.Findings, func(f augur.Finding) bool { return f.RuleID == "OTEL-018" }) {
+		t.Error("OTEL-018 should NOT fire when endpoint is an unresolved env var")
+	}
+
+	// With env supplied and resolving to http://: OTEL-018 fires because the
+	// resolved value is plaintext to a non-local host.
+	resolved, err := augur.New(augur.WithEnv(map[string]string{"OTEL_URL": "http://collector.example.com:4318"}))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	r2, err := resolved.LintYAML(context.Background(), "t.yaml", yaml)
+	if err != nil {
+		t.Fatalf("LintYAML: %v", err)
+	}
+	if !slices.ContainsFunc(r2.Findings, func(f augur.Finding) bool { return f.RuleID == "OTEL-018" }) {
+		t.Errorf("OTEL-018 should fire on resolved http:// endpoint, got %v", r2.Findings)
+	}
+
+	// With env resolving to https://: OTEL-018 must stay silent.
+	resolvedHTTPS, err := augur.New(augur.WithEnv(map[string]string{"OTEL_URL": "https://collector.example.com:4318"}))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	r3, err := resolvedHTTPS.LintYAML(context.Background(), "t.yaml", yaml)
+	if err != nil {
+		t.Fatalf("LintYAML: %v", err)
+	}
+	if slices.ContainsFunc(r3.Findings, func(f augur.Finding) bool { return f.RuleID == "OTEL-018" }) {
+		t.Errorf("OTEL-018 should NOT fire on resolved https:// endpoint, got %v", r3.Findings)
+	}
+}
+
+func TestLint_EnvFile(t *testing.T) {
+	dir := t.TempDir()
+	envPath := filepath.Join(dir, "vars.env")
+	if err := os.WriteFile(envPath, []byte("OTEL_URL=http://collector.example.com:4318\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	yamlPath := filepath.Join(dir, "cfg.yaml")
+	if err := os.WriteFile(yamlPath, []byte(`receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: localhost:4317
+processors:
+  memory_limiter: {check_interval: 5s, limit_mib: 4000}
+  batch: {}
+exporters:
+  otlp/backend:
+    endpoint: "${env:OTEL_URL}"
+    retry_on_failure: {enabled: true}
+    sending_queue: {enabled: true, queue_size: 1000, num_consumers: 4}
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/backend]
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	l, err := augur.New(augur.WithEnvFile(envPath))
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	r, err := l.LintFile(context.Background(), yamlPath)
+	if err != nil {
+		t.Fatalf("LintFile: %v", err)
+	}
+	if !slices.ContainsFunc(r.Findings, func(f augur.Finding) bool { return f.RuleID == "OTEL-018" }) {
+		t.Errorf("OTEL-018 should fire after env file resolves OTEL_URL to http://, got %v", r.Findings)
+	}
+}
+
+func TestLint_EnvFileMissing(t *testing.T) {
+	if _, err := augur.New(augur.WithEnvFile(filepath.Join(t.TempDir(), "missing.env"))); err == nil {
+		t.Error("expected error when env file is missing")
+	}
+}
+
 func TestNew_Errors(t *testing.T) {
 	tests := []struct {
 		wantIs error

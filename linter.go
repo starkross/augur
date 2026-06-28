@@ -37,6 +37,7 @@ type Linter struct {
 	engine     *engine.Engine
 	skipRules  map[string]struct{}
 	severities map[Severity]struct{}
+	env        map[string]string
 }
 
 // New constructs a Linter. By default it loads the bundled OTEL-* rules; use
@@ -65,17 +66,41 @@ func New(opts ...Option) (*Linter, error) {
 		return nil, fmt.Errorf("augur: compiling policies: %w", err)
 	}
 
+	env, err := buildEnv(&lo)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Linter{
 		engine:     eng,
 		skipRules:  lo.skipRules,
 		severities: lo.severities,
+		env:        env,
 	}, nil
+}
+
+func buildEnv(lo *linterOptions) (map[string]string, error) {
+	if len(lo.envFiles) == 0 && len(lo.env) == 0 {
+		return nil, nil
+	}
+	merged, err := config.LoadEnvFiles(lo.envFiles)
+	if err != nil {
+		return nil, fmt.Errorf("augur: loading env file: %w", err)
+	}
+	if merged == nil {
+		merged = map[string]string{}
+	}
+	for k, v := range lo.env {
+		merged[k] = v
+	}
+	return merged, nil
 }
 
 // Lint evaluates a pre-parsed config map. label identifies the source in
 // the returned [Result.File] and each [Finding.File]; pass a filename, URL,
 // or any other human-readable identifier.
 func (l *Linter) Lint(ctx context.Context, label string, input map[string]any) (*Result, error) {
+	config.SubstituteEnv(input, l.env)
 	r, err := l.engine.Eval(ctx, label, input)
 	if err != nil {
 		return nil, err

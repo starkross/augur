@@ -21,6 +21,7 @@ func newRootCmd(version string) *cobra.Command {
 		skipRules string
 		noColor   bool
 		policyDir string
+		envFiles  []string
 	)
 
 	root := &cobra.Command{
@@ -34,13 +35,14 @@ func newRootCmd(version string) *cobra.Command {
 		Version: version,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return run(args, runOpts{
+			return run(args, &runOpts{
 				outputFmt: outputFmt,
 				strict:    strict,
 				quiet:     quiet,
 				skipRules: parseSkip(skipRules),
 				noColor:   noColor,
 				policyDir: policyDir,
+				envFiles:  envFiles,
 			})
 		},
 		SilenceErrors: true,
@@ -54,6 +56,7 @@ func newRootCmd(version string) *cobra.Command {
 	f.StringVarP(&skipRules, "skip", "k", "", "Comma-separated rule IDs to skip")
 	f.BoolVar(&noColor, "no-color", false, "Disable colored output")
 	f.StringVarP(&policyDir, "policy", "p", "", "Additional policy directory (merged with built-in rules)")
+	f.StringSliceVar(&envFiles, "env-file", nil, "Path to a .env-style file used to resolve ${env:VAR} placeholders (repeatable; later files override)")
 
 	return root
 }
@@ -62,12 +65,13 @@ type runOpts struct {
 	outputFmt string
 	policyDir string
 	skipRules []string
+	envFiles  []string
 	strict    bool
 	quiet     bool
 	noColor   bool
 }
 
-func run(files []string, opts runOpts) error {
+func run(files []string, opts *runOpts) error {
 	ctx := context.Background()
 
 	var linterOpts []augur.Option
@@ -76,6 +80,9 @@ func run(files []string, opts runOpts) error {
 	}
 	if len(opts.skipRules) > 0 {
 		linterOpts = append(linterOpts, augur.WithSkipRules(opts.skipRules...))
+	}
+	if len(opts.envFiles) > 0 {
+		linterOpts = append(linterOpts, augur.WithEnvFile(opts.envFiles...))
 	}
 	if opts.quiet {
 		linterOpts = append(linterOpts, augur.WithSeverities(augur.SeverityDeny))
