@@ -11,6 +11,8 @@ import future.keywords.in
 deny contains msg if {
 	some name, proc in input.processors
 	split(name, "/")[0] == "batch"
+	is_number(proc.send_batch_max_size)
+	is_number(proc.send_batch_size)
 	proc.send_batch_max_size < proc.send_batch_size
 	msg := sprintf(
 		"OTEL-024: processor '%s' send_batch_max_size (%d) < send_batch_size (%d).",
@@ -33,6 +35,8 @@ deny contains msg if {
 deny contains msg if {
 	some name, proc in input.processors
 	split(name, "/")[0] == "memory_limiter"
+	is_number(proc.spike_limit_mib)
+	is_number(proc.limit_mib)
 	proc.spike_limit_mib >= proc.limit_mib
 	msg := sprintf(
 		"OTEL-028: processor '%s' spike_limit_mib (%d) >= limit_mib (%d). Soft limit is zero or negative.",
@@ -83,6 +87,7 @@ warn contains msg if {
 warn contains msg if {
 	some name, proc in input.processors
 	split(name, "/")[0] == "memory_limiter"
+	is_number(proc.limit_percentage)
 	proc.limit_percentage > 90
 	msg := sprintf(
 		"OTEL-030: processor '%s' limit_percentage %v exceeds 90%%. Risk of OOM before limiter activates.",
@@ -93,6 +98,7 @@ warn contains msg if {
 warn contains msg if {
 	some name, proc in input.processors
 	split(name, "/")[0] == "memory_limiter"
+	is_number(proc.limit_percentage)
 	proc.limit_percentage < 20
 	msg := sprintf(
 		"OTEL-030: processor '%s' limit_percentage %v is below 20%%. Wastes majority of allocated memory.",
@@ -114,5 +120,6 @@ _has_memory_limit(proc) if proc.limit_percentage
 
 _has_batch_max_size(proc) if {
 	is_object(proc)
+	is_number(proc.send_batch_max_size)
 	proc.send_batch_max_size > 0
 }

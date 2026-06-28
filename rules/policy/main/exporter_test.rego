@@ -61,6 +61,13 @@ test_050_warn_queue_size_too_large if {
 	contains(msg, "OTEL-050")
 }
 
+test_050_pass_on_unresolved_env_var if {
+	val := {"endpoint": "backend:4317", "sending_queue": {"queue_size": "${env:QUEUE_SIZE}"}}
+	cfg := json.patch(valid_config, [{"op": "add", "path": "/exporters/otlp", "value": val}])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-050")
+}
+
 test_051_warn_num_consumers_low if {
 	val := {"endpoint": "backend:4317", "sending_queue": {"num_consumers": 1}}
 	cfg := json.patch(valid_config, [{"op": "add", "path": "/exporters/otlp", "value": val}])

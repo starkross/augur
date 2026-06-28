@@ -81,6 +81,7 @@ warn contains msg if {
 	endpoint != ""
 	not contains(endpoint, "localhost")
 	not contains(endpoint, "127.0.0.1")
+	not lib.is_env_var(endpoint)
 	object.get(proto_cfg, "transport", "") != "unix"
 	not proto_cfg.tls
 	msg := sprintf("OTEL-033: receiver '%s/%s' on non-localhost endpoint '%s' without TLS.", [name, proto, endpoint])
@@ -90,6 +91,7 @@ warn contains msg if {
 warn contains msg if {
 	some name, receiver in input.receivers
 	some proto, proto_cfg in receiver.protocols
+	is_number(proto_cfg.max_recv_msg_size_mib)
 	proto_cfg.max_recv_msg_size_mib > 128
 	msg := sprintf(
 		"OTEL-036: receiver '%s/%s' max_recv_msg_size_mib is %d (>128). Risk of decompression bomb.",

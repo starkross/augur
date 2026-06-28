@@ -49,6 +49,13 @@ test_033_pass_on_unix_transport if {
 	not_contains_rule(msgs, "OTEL-033")
 }
 
+test_033_pass_on_unresolved_env_var if {
+	val := {"protocols": {"grpc": {"endpoint": "${env:OTLP_RECEIVER_ENDPOINT}"}}}
+	cfg := json.patch(valid_config, [{"op": "replace", "path": "/receivers/otlp", "value": val}])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-033")
+}
+
 test_034_deny_cors_wildcard if {
 	val := {"protocols": {"http": {"cors": {"allowed_origins": ["*"]}, "endpoint": "localhost:4318"}}}
 	cfg := json.patch(valid_config, [{"op": "replace", "path": "/receivers/otlp", "value": val}])
@@ -79,6 +86,13 @@ test_036_warn_large_recv_msg_size if {
 	msgs := main.warn with input as cfg
 	some msg in msgs
 	contains(msg, "OTEL-036")
+}
+
+test_036_pass_on_unresolved_env_var if {
+	val := {"protocols": {"grpc": {"endpoint": "localhost:4317", "max_recv_msg_size_mib": "${env:MAX_RECV_MIB}"}}}
+	cfg := json.patch(valid_config, [{"op": "replace", "path": "/receivers/otlp", "value": val}])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-036")
 }
 
 test_037_warn_inline_key_pem if {
