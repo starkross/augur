@@ -13,6 +13,8 @@ type Option func(*linterOptions)
 type linterOptions struct {
 	skipRules       map[string]struct{}
 	severities      map[Severity]struct{}
+	env             map[string]string
+	envFiles        []string
 	extraSources    []engine.PolicySource
 	disableBuiltins bool
 }
@@ -66,6 +68,34 @@ func WithSkipRules(ids ...string) Option {
 				o.skipRules[id] = struct{}{}
 			}
 		}
+	}
+}
+
+// WithEnv supplies variable values for ${env:VAR} / ${ENV:VAR} substitution
+// inside config string values. Substitution happens after YAML parsing and
+// before policy evaluation, so rules see the resolved values. Unknown
+// references are left untouched and remain detectable by the bundled
+// `is_env_var` helper. Multiple calls merge — later calls override earlier
+// keys.
+func WithEnv(env map[string]string) Option {
+	return func(o *linterOptions) {
+		if o.env == nil {
+			o.env = make(map[string]string, len(env))
+		}
+		for k, v := range env {
+			o.env[k] = v
+		}
+	}
+}
+
+// WithEnvFile registers a .env-style file (KEY=VALUE per line; '#' comments)
+// to be loaded at [New] time. The merged map drives ${env:VAR} substitution
+// in the same way as [WithEnv]. Files are loaded in the order they are
+// declared; later files override earlier ones, and explicit [WithEnv] entries
+// override values from any file.
+func WithEnvFile(paths ...string) Option {
+	return func(o *linterOptions) {
+		o.envFiles = append(o.envFiles, paths...)
 	}
 }
 

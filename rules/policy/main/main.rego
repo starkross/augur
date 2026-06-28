@@ -139,6 +139,7 @@ warn contains msg if {
 	not startswith(endpoint, "unix:")
 	not contains(endpoint, "localhost")
 	not contains(endpoint, "127.0.0.1")
+	not lib.is_env_var(endpoint)
 	msg := sprintf("OTEL-018: exporter '%s' has no TLS configured for non-local endpoint.", [name])
 }
 
