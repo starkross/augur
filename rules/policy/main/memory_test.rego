@@ -96,3 +96,10 @@ test_030_warn_limit_percentage_too_low if {
 	some msg in msgs
 	contains(msg, "OTEL-030")
 }
+
+test_030_pass_on_unresolved_env_var if {
+	val := {"check_interval": "1s", "limit_mib": 512, "limit_percentage": "${env:MEM_LIMIT_PCT}"}
+	cfg := json.patch(valid_config, [{"op": "replace", "path": "/processors/memory_limiter", "value": val}])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-030")
+}

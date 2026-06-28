@@ -67,6 +67,7 @@ warn contains msg if {
 # OTEL-049: queue_size below 10
 warn contains msg if {
 	some name, exporter in input.exporters
+	is_number(exporter.sending_queue.queue_size)
 	exporter.sending_queue.queue_size < 10
 	msg := sprintf(
 		"OTEL-049: exporter '%s' sending_queue.queue_size is %d (<10). Queue fills instantly.",
@@ -77,6 +78,7 @@ warn contains msg if {
 # OTEL-050: queue_size above 50000
 warn contains msg if {
 	some name, exporter in input.exporters
+	is_number(exporter.sending_queue.queue_size)
 	exporter.sending_queue.queue_size > 50000
 	msg := sprintf(
 		"OTEL-050: exporter '%s' sending_queue.queue_size is %d (>50000). Risk of OOM outside memory_limiter.",
@@ -87,6 +89,7 @@ warn contains msg if {
 # OTEL-051: num_consumers below 2
 warn contains msg if {
 	some name, exporter in input.exporters
+	is_number(exporter.sending_queue.num_consumers)
 	exporter.sending_queue.num_consumers < 2
 	msg := sprintf(
 		"OTEL-051: exporter '%s' sending_queue.num_consumers is %d. Single consumer limits throughput.",
