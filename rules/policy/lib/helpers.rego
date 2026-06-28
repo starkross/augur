@@ -34,14 +34,19 @@ all_used_processors contains p if {
 	some p in pipeline_processors(t)
 }
 
+# is_env_var reports whether a value is sourced from an environment variable.
+# It matches any value that *contains* a ${env:VAR} / ${ENV:VAR} reference, not
+# only values that are wholly one — so partial endpoints like
+# "${env:MY_POD_IP}:4317" (the OTel Helm charts' standard pattern) and headers
+# like "Bearer ${env:TOKEN}" are recognised too.
 is_env_var(val) if {
-	startswith(val, "${env:")
-	endswith(val, "}")
+	is_string(val)
+	contains(val, "${env:")
 }
 
 is_env_var(val) if {
-	startswith(val, "${ENV:")
-	endswith(val, "}")
+	is_string(val)
+	contains(val, "${ENV:")
 }
 
 looks_like_secret(key) if {

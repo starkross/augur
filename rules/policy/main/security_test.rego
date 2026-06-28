@@ -56,6 +56,15 @@ test_033_pass_on_unresolved_env_var if {
 	not_contains_rule(msgs, "OTEL-033")
 }
 
+# The OTel Helm charts bind to "${env:MY_POD_IP}:4317" — an env reference with a
+# port appended. is_env_var must recognise it even though it does not end in "}".
+test_033_pass_on_env_var_with_port if {
+	val := {"protocols": {"grpc": {"endpoint": "${env:MY_POD_IP}:4317"}}}
+	cfg := json.patch(valid_config, [{"op": "replace", "path": "/receivers/otlp", "value": val}])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-033")
+}
+
 test_034_deny_cors_wildcard if {
 	val := {"protocols": {"http": {"cors": {"allowed_origins": ["*"]}, "endpoint": "localhost:4318"}}}
 	cfg := json.patch(valid_config, [{"op": "replace", "path": "/receivers/otlp", "value": val}])

@@ -57,7 +57,7 @@ warn contains msg if {
 
 # OTEL-048: sending_queue explicitly disabled
 warn contains msg if {
-	pull_based := {"debug", "logging", "prometheus", "prometheusremotewrite", "file"}
+	pull_based := {"debug", "logging", "prometheus", "prometheusremotewrite", "file", "nop"}
 	some name, exporter in input.exporters
 	not split(name, "/")[0] in pull_based
 	exporter.sending_queue.enabled == false
@@ -99,7 +99,7 @@ warn contains msg if {
 
 # OTEL-052: compression disabled for network exporter
 warn contains msg if {
-	pull_based := {"debug", "logging", "prometheus", "prometheusremotewrite", "file"}
+	pull_based := {"debug", "logging", "prometheus", "prometheusremotewrite", "file", "nop"}
 	some name, exporter in input.exporters
 	not split(name, "/")[0] in pull_based
 	exporter.compression == "none"

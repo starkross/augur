@@ -98,6 +98,13 @@ test_018_pass_on_unresolved_env_var if {
 	not_contains_rule(msgs, "OTEL-018")
 }
 
+test_018_pass_on_env_var_with_port if {
+	val := {"endpoint": "${env:OTEL_HOST}:4317"}
+	cfg := json.patch(valid_config, [{"op": "replace", "path": "/exporters/otlp~1backend", "value": val}])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-018")
+}
+
 test_013_warn_batch_not_last if {
 	val := ["batch", "memory_limiter"]
 	cfg := json.patch(valid_config, [{"op": "replace", "path": "/service/pipelines/traces/processors", "value": val}])
@@ -231,6 +238,33 @@ test_017_warn_awss3_without_retry if {
 	some msg in msgs
 	contains(msg, "OTEL-017")
 	contains(msg, "awss3")
+}
+
+# The nop exporter discards data by design — retry/queue is meaningless.
+test_017_pass_nop_exporter if {
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/nop", "value": {}},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "nop"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
+}
+
+# loadbalancing nests retry/queue under protocol.otlp, not at the top level.
+test_017_pass_loadbalancing_nested_resilience if {
+	lb := {
+		"protocol": {"otlp": {
+			"retry_on_failure": {"enabled": true},
+			"sending_queue": {"enabled": true},
+		}},
+		"resolver": {"static": {"hostnames": ["backend:4317"]}},
+	}
+	cfg := json.patch(valid_config, [
+		{"op": "add", "path": "/exporters/loadbalancing", "value": lb},
+		{"op": "add", "path": "/service/pipelines/traces/exporters/-", "value": "loadbalancing"},
+	])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-017")
 }
 
 test_020_warn_unused_receiver if {
