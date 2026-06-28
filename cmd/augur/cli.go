@@ -35,7 +35,7 @@ func newRootCmd(version string) *cobra.Command {
 		Version: version,
 		Args:    cobra.MinimumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			return run(args, runOpts{
+			return run(args, &runOpts{
 				outputFmt: outputFmt,
 				strict:    strict,
 				quiet:     quiet,
@@ -71,7 +71,7 @@ type runOpts struct {
 	noColor   bool
 }
 
-func run(files []string, opts runOpts) error {
+func run(files []string, opts *runOpts) error {
 	ctx := context.Background()
 
 	var linterOpts []augur.Option

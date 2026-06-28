@@ -66,7 +66,7 @@ func New(opts ...Option) (*Linter, error) {
 		return nil, fmt.Errorf("augur: compiling policies: %w", err)
 	}
 
-	env, err := buildEnv(lo)
+	env, err := buildEnv(&lo)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func New(opts ...Option) (*Linter, error) {
 	}, nil
 }
 
-func buildEnv(lo linterOptions) (map[string]string, error) {
+func buildEnv(lo *linterOptions) (map[string]string, error) {
 	if len(lo.envFiles) == 0 && len(lo.env) == 0 {
 		return nil, nil
 	}

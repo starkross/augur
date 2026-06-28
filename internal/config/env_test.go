@@ -75,7 +75,7 @@ func TestSubstituteEnv_ResolvesReferences(t *testing.T) {
 			"otlp": map[string]any{
 				"endpoint": "${env:OTEL_URL}",
 				"headers": map[string]any{
-					"x-token":  "${ENV:TOKEN}",
+					"x-tenant": "${ENV:TENANT}",
 					"x-static": "literal",
 				},
 				"tags": []any{"${env:REGION}", "static"},
@@ -84,21 +84,21 @@ func TestSubstituteEnv_ResolvesReferences(t *testing.T) {
 	}
 	env := map[string]string{
 		"OTEL_URL": "https://collector.example.com",
-		"TOKEN":    "abc123",
+		"TENANT":   "team-a",
 		"REGION":   "us-east-1",
 	}
 	config.SubstituteEnv(in, env)
 
-	exporters := in["exporters"].(map[string]any)
-	otlp := exporters["otlp"].(map[string]any)
+	exporters, _ := in["exporters"].(map[string]any)
+	otlp, _ := exporters["otlp"].(map[string]any)
 	if got := otlp["endpoint"]; got != "https://collector.example.com" {
 		t.Errorf("endpoint: got %v", got)
 	}
-	headers := otlp["headers"].(map[string]any)
-	if got := headers["x-token"]; got != "abc123" {
-		t.Errorf("x-token: got %v", got)
+	headers, _ := otlp["headers"].(map[string]any)
+	if got := headers["x-tenant"]; got != "team-a" {
+		t.Errorf("x-tenant: got %v", got)
 	}
-	tags := otlp["tags"].([]any)
+	tags, _ := otlp["tags"].([]any)
 	if tags[0] != "us-east-1" {
 		t.Errorf("tags[0]: got %v", tags[0])
 	}
