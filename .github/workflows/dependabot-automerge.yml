@@ -1,0 +1,25 @@
+name: Dependabot auto-merge
+
+# Runs as pull_request_target so the job gets a write-scoped GITHUB_TOKEN;
+# the token handed to workflows on Dependabot's own pull_request events is
+# read-only. Nothing from the PR head is checked out or executed here.
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    name: Enable auto-merge
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
