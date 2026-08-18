@@ -34,7 +34,7 @@ warn contains msg if {
 	endpoint != ""
 	not startswith(endpoint, "http://")
 	not startswith(endpoint, "https://")
-	not lib.is_env_var(endpoint)
+	not lib.env_host(endpoint)
 	msg := sprintf("OTEL-046: OTLP HTTP exporter '%s' endpoint '%s' is missing URL scheme.", [name, endpoint])
 }
 

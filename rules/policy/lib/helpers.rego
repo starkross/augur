@@ -34,11 +34,10 @@ all_used_processors contains p if {
 	some p in pipeline_processors(t)
 }
 
-# is_env_var reports whether a value is sourced from an environment variable.
-# It matches any value that *contains* a ${env:VAR} / ${ENV:VAR} reference, not
-# only values that are wholly one — so partial endpoints like
-# "${env:MY_POD_IP}:4317" (the OTel Helm charts' standard pattern) and headers
-# like "Bearer ${env:TOKEN}" are recognised too.
+# is_env_var reports whether a value contains a ${env:VAR} / ${ENV:VAR}
+# reference anywhere — so composite values like "Bearer ${env:TOKEN}" are
+# recognised too. Right for the hardcoded-secret rules; endpoint rules use
+# env_host instead, which anchors the reference to the start of the value.
 is_env_var(val) if {
 	is_string(val)
 	contains(val, "${env:")
@@ -47,6 +46,21 @@ is_env_var(val) if {
 is_env_var(val) if {
 	is_string(val)
 	contains(val, "${ENV:")
+}
+
+# env_host reports whether a value's *host* is an environment reference — the
+# value starts with ${env:VAR} / ${ENV:VAR}. Endpoint rules (TLS, bind address,
+# URL scheme) use this instead of is_env_var: "${env:MY_POD_IP}:4317" is
+# genuinely env-sourced, but "collector.example.com:${env:PORT}" hardcodes the
+# host and must still be inspected.
+env_host(val) if {
+	is_string(val)
+	startswith(val, "${env:")
+}
+
+env_host(val) if {
+	is_string(val)
+	startswith(val, "${ENV:")
 }
 
 looks_like_secret(key) if {

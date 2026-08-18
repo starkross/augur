@@ -105,6 +105,16 @@ test_018_pass_on_env_var_with_port if {
 	not_contains_rule(msgs, "OTEL-018")
 }
 
+# A hardcoded remote host must still warn even when the *port* is an env
+# reference — only an env-sourced host (env_host) clears the rule.
+test_018_warn_hardcoded_host_env_port if {
+	val := {"endpoint": "collector.example.com:${env:PORT}"}
+	cfg := json.patch(valid_config, [{"op": "replace", "path": "/exporters/otlp~1backend", "value": val}])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-018")
+}
+
 test_013_warn_batch_not_last if {
 	val := ["batch", "memory_limiter"]
 	cfg := json.patch(valid_config, [{"op": "replace", "path": "/service/pipelines/traces/processors", "value": val}])

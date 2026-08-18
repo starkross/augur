@@ -65,6 +65,16 @@ test_033_pass_on_env_var_with_port if {
 	not_contains_rule(msgs, "OTEL-033")
 }
 
+# A hardcoded remote host must still warn even when the *port* is an env
+# reference — only an env-sourced host (env_host) clears the rule.
+test_033_warn_hardcoded_host_env_port if {
+	val := {"protocols": {"grpc": {"endpoint": "collector.example.com:${env:PORT}"}}}
+	cfg := json.patch(valid_config, [{"op": "replace", "path": "/receivers/otlp", "value": val}])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-033")
+}
+
 test_034_deny_cors_wildcard if {
 	val := {"protocols": {"http": {"cors": {"allowed_origins": ["*"]}, "endpoint": "localhost:4318"}}}
 	cfg := json.patch(valid_config, [{"op": "replace", "path": "/receivers/otlp", "value": val}])
