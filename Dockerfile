@@ -8,8 +8,8 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /augur ./cmd/augur
 
 # alpine:3.20
 FROM alpine@sha256:a4f4213abb84c497377b8544c81b3564f313746700372ec4fe84653e4fb03805
-RUN addgroup -S augur && adduser -S augur -G augur
+RUN addgroup -S -g 10001 augur && adduser -S -u 10001 augur -G augur
 COPY --from=builder /augur /usr/local/bin/augur
-USER augur
+USER 10001:10001
 WORKDIR /work
 ENTRYPOINT ["augur"]
