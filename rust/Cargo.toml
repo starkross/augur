@@ -1,0 +1,25 @@
+[workspace]
+resolver = "2"
+members = ["augur-core", "augur-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/starkross/augur"
+
+[workspace.dependencies]
+# Pinned to a commit rather than 0.11.0: the released crate predates the fix for
+# function calls through import aliases (microsoft/regorus#747, fixed by #769),
+# which the bundled policies rely on via `import data.lib`.
+regorus = { git = "https://github.com/microsoft/regorus", rev = "409a36f375c1365d66fe2772b59d31bff839728b", default-features = false, features = ["std", "arc"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_norway = "0.9"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
