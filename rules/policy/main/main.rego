@@ -120,7 +120,7 @@ warn contains msg if {
 }
 
 warn contains msg if {
-	pull_based := {"debug", "logging", "prometheus", "prometheusremotewrite"}
+	pull_based := {"debug", "logging", "prometheus", "prometheusremotewrite", "nop"}
 	some name, exporter in input.exporters
 	base_type := split(name, "/")[0]
 	not base_type in pull_based
@@ -139,7 +139,7 @@ warn contains msg if {
 	not startswith(endpoint, "unix:")
 	not contains(endpoint, "localhost")
 	not contains(endpoint, "127.0.0.1")
-	not lib.is_env_var(endpoint)
+	not lib.env_host(endpoint)
 	msg := sprintf("OTEL-018: exporter '%s' has no TLS configured for non-local endpoint.", [name])
 }
 
@@ -182,4 +182,16 @@ _exporter_has_alt_retry(base_type, exporter) if {
 	base_type == "awss3"
 	mode := exporter.s3uploader.retry_mode
 	mode != "nop"
+}
+
+# The loadbalancing exporter wraps an inner exporter, so its retry_on_failure
+# and sending_queue live under protocol.otlp rather than at the top level.
+_exporter_has_alt_retry(base_type, exporter) if {
+	base_type == "loadbalancing"
+	exporter.protocol.otlp.retry_on_failure
+}
+
+_exporter_has_alt_retry(base_type, exporter) if {
+	base_type == "loadbalancing"
+	exporter.protocol.otlp.sending_queue
 }

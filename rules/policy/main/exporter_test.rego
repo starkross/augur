@@ -29,6 +29,24 @@ test_046_warn_http_endpoint_no_scheme if {
 	contains(msg, "OTEL-046")
 }
 
+# An env-sourced endpoint may expand to a full URL, scheme included — the rule
+# cannot know, so it stays quiet.
+test_046_pass_env_host_endpoint if {
+	val := {"endpoint": "${env:OTLP_ENDPOINT}"}
+	cfg := json.patch(valid_config, [{"op": "add", "path": "/exporters/otlphttp", "value": val}])
+	msgs := main.warn with input as cfg
+	not_contains_rule(msgs, "OTEL-046")
+}
+
+# But a hardcoded host with only the port env-sourced definitely has no scheme.
+test_046_warn_hardcoded_host_env_port if {
+	val := {"endpoint": "backend.example.com:${env:PORT}"}
+	cfg := json.patch(valid_config, [{"op": "add", "path": "/exporters/otlphttp", "value": val}])
+	msgs := main.warn with input as cfg
+	some msg in msgs
+	contains(msg, "OTEL-046")
+}
+
 test_047_warn_http_using_grpc_port if {
 	val := {"endpoint": "https://backend.example.com:4317"}
 	cfg := json.patch(valid_config, [{"op": "add", "path": "/exporters/otlphttp", "value": val}])
