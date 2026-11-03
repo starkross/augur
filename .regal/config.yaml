@@ -3,3 +3,6 @@ rules:
     # object.values() unavailable in embedded OPA v1 — must use `some _, v in obj`
     in-wildcard-key:
       level: ignore
+    # Added in Regal v0.43.0; sprintf remains valid and keeps messages compatible with older OPA
+    prefer-string-interpolation:
+      level: ignore
